@@ -42,7 +42,7 @@ From this point on the board and module communicate in packets.
 | 2   | Mode                 | `uint8`  | See [Mode Values](#runmode-values).               |
 | 3   | Set Temperature      | `uint8`  | °C, in range 17-30                                |
 | 4   | Fan Speed            | `uint8`  | 1-5                                               |
-| 5   | Undervolt Protection | `uint16` | decivolts                                         |
+| 5   | Undervolt Protection | `uint8`  | decivolts                                         |
 | 6   | Overvolt Protection  | `uint8`  | Volts                                             |
 | 7   | Intake Air Temp      | `uint8`  | °C                                                |
 | 8   | Air Outlet Temp      | `uint8`  | °C                                                |
