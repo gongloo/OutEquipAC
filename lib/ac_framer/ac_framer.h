@@ -67,6 +67,7 @@ class ACFramer {
         case OnOffValue::On: return "On";
         case OnOffValue::Off: return "Off";
       }
+      return "Invalid OnOffValue";
     }
 
     static constexpr const char* ModeValueToString(ModeValue v) {
@@ -80,10 +81,13 @@ class ACFramer {
         case ModeValue::Turbo: return "Turbo";
         case ModeValue::Wet: return "Wet";
       }
+      return "Invalid ModeValue";
     }
 
     ACFramer();
     ~ACFramer() {}
+
+    void NewFrame(Key key, uint16_t value);
 
     /**
      * @brief Frames the incoming data.

@@ -36,9 +36,7 @@ bool ACFramer::FrameData(const uint8_t data) {
   return true;
 }
 
-void ACFramer::Reset() {
-  buffer_pos_ = 0;
-}
+void ACFramer::Reset() { buffer_pos_ = 0; }
 
 ACFramer::Key ACFramer::GetKey() const {
   return static_cast<Key>(buffer_[FRAME_KEY_BYTE]);
@@ -52,6 +50,50 @@ uint16_t ACFramer::GetValue() const {
       return (buffer_[FRAME_VALUE_BYTE] << 8) | buffer_[FRAME_VALUE_BYTE + 1];
   }
   return 0;
+}
+
+void ACFramer::NewFrame(Key key, uint16_t value) {
+  Reset();
+
+  // Preamble.
+  assert(buffer_pos_ == 0);
+  memcpy(buffer_, kPreamble, sizeof(kPreamble));
+  buffer_pos_ += sizeof(kPreamble);
+
+  // Length
+  assert(buffer_pos_ == FRAME_LENGTH_BYTE);
+  bool long_value = value > UINT8_MAX;
+  buffer_[buffer_pos_++] = sizeof(kPostamble) + 3 /* unknown, key, checksum */ +
+                           (long_value ? 2 : 1);
+
+  // Unknown.
+  buffer_[buffer_pos_++] = 1;
+
+  // Key
+  assert(buffer_pos_ == FRAME_KEY_BYTE);
+  buffer_[buffer_pos_++] = static_cast<uint8_t>(key);
+
+  // Value
+  assert(buffer_pos_ == FRAME_VALUE_BYTE);
+  if (long_value) {
+    buffer_[buffer_pos_++] = static_cast<uint8_t>(value >> 8);
+    buffer_[buffer_pos_++] = static_cast<uint8_t>(value);
+  } else {
+    buffer_[buffer_pos_++] = static_cast<uint8_t>(value);
+  }
+
+  // Checksum
+  uint8_t checksum = 0;
+  for (size_t i = 0; i < buffer_pos_; ++i) {
+    checksum += buffer_[i];
+  }
+  buffer_[buffer_pos_++] = checksum;
+
+  // Postamble
+  memcpy(buffer_ + buffer_pos_, kPostamble, sizeof(kPostamble));
+  buffer_pos_ += sizeof(kPostamble);
+
+  // assert(ValidateFrame());
 }
 
 uint8_t ACFramer::GetLength() const {
@@ -88,8 +130,7 @@ bool ACFramer::ValidateFrame() const {
 
   // Validate checksum.
   uint8_t checksum = 0;
-  for (size_t i = 0; i < buffer_pos_ - sizeof(kPostamble) - 1;
-       ++i) {
+  for (size_t i = 0; i < buffer_pos_ - sizeof(kPostamble) - 1; ++i) {
     checksum += buffer_[i];
   }
   if (checksum != buffer_[buffer_pos_ - sizeof(kPostamble) - 1]) {
