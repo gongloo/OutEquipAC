@@ -30,7 +30,7 @@ void DumpHexAndAscii(const uint8_t c) {
       Serial.print(" (\\n)");
       break;
     default:
-      Serial.printf(" (%c)", c);;
+      Serial.printf(" (%c)", c);
   }
 }
 
