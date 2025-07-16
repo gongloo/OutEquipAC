@@ -1,0 +1,75 @@
+# Initialization
+Baud rate 115200.
+
+The board first sends some nonsensical header. Perhaps some other baud rate? Can likely be ignored.
+
+```
+00 00 00 00 ff 01 00 00 00 00 00 ff c0
+```
+
+The board then sends in ASCII an AT command to the bluetooth module.
+
+```
+AT+NAME?\r\n
+```
+The module responds in ASCII with its name.
+
+```
+\r\n+NAME:KT2025040004510\r\nOK\r\n
+```
+
+From this point on the board and module communicate in packets.
+
+# Packet Format
+
+| Length (B) | Datum     | Value                                                          |
+| ---------- | --------- | -------------------------------------------------------------- |
+| 2          | Preamble  | `0x5a5a`                                                       |
+| 1          | Length    | `uint8` number of bytes remaining in this packet. Must be >=5. |
+| 1          | Unknown   | Always `0x01` so far.                                          |
+| 1          | Key       | `uint8` See [Keys](#keys).                                     |
+| `Length-5` | Value     | Key-Dependent.                                                 |
+| 1          | Checksum  | `uint8` sum of each preceeding byte in packet.                 |
+| 2          | Postamble | `0x0d0a`                                                       |
+
+## Keys
+
+| Key | Intent               | Type     | Value                                             |
+| --- | -------------------- | -------- | ------------------------------------------------- |
+| 1   | Power                | `uint8`  | See [On/Off Values](#onoff-values) TODO: Validate |
+| 2   | Mode                 | `uint8`  | See [Mode Values](#runmode-values).               |
+| 3   | Set Temperature      | `uint8`  | °C, in range 17-30                                |
+| 4   | Fan Speed            | `uint8`  | 1-5                                               |
+| 5   | Undervolt Protection | `uint8`  | decivolts                                         |
+| 6   | Overvolt Protection  | `uint8`  | decivolts                                         |
+| 7   | Intake Air Temp      | `uint8`  | °C                                                |
+| 8   | Air Outlet Temp      | `uint8`  | °C                                                |
+| 10  | LCD                  | `uint8`  | See [On/Off Values](#onoff-values) TODO: Validate |
+| 16  | Swing                | `uint8`  | See [On/Off Values](#onoff-values) TODO: Validate |
+| 18  | Voltage              | `uint8`  | decivolts                                         |
+| 19  | Amperage             | `uint16` | deciamps                                          |
+| 28  | Light                | `uint8`  | See [On/Off Values](#onoff-values)                |
+| 66  | Active               | `uint8`  | Unknown.                                          |
+
+Key `66` is always set to `1` by the client immediately after connecting.
+
+Keys `2`, `3`, `7`, `8`, `18`, `19` are auto-refreshed in the app by writing the value `0`, causing the controller to reply with current values.
+
+## Mode Values
+
+| Value | Intent                                                |
+| ----- | ----------------------------------------------------- |
+| 1     | Cooling                                               |
+| 2     | Heating                                               |
+| 3     | Air Supply Mode TODO: Is this fan only?               |
+| 4     | Eco Cooling                                           |
+| 5     | Sleep Cooling                                         |
+| 6     | Turbo Cooling                                         |
+| 7     | Wet Mode TODO: What even is this?! Heat + Cool maybe? |
+
+## On/Off Values
+
+| Value | Intent |
+| ----- | ------ |
+| 1     | On     |
+| 2     | Off    |
