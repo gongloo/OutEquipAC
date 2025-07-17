@@ -1,26 +1,8 @@
-# Initialization
+# Protocol
 
 Baud rate 115200.
 
-The board first sends some nonsensical header. Perhaps some other baud rate? Can likely be ignored.
-
-```
-00 00 00 00 ff 01 00 00 00 00 00 ff c0
-```
-
-The board then sends in ASCII an AT command to the bluetooth module.
-
-```
-AT+NAME?\r\n
-```
-
-The module responds in ASCII with its name.
-
-```
-\r\n+NAME:KT2025040004510\r\nOK\r\n
-```
-
-From this point on the board and module communicate in packets.
+To set state, issue a packet with the key and value to set. To query for current state, send a packet with the [key](#keys) being queried, and value being `0`. Wait for a response packet before sending another query or set operation.
 
 # Packet Format
 
@@ -53,10 +35,6 @@ From this point on the board and module communicate in packets.
 | 28  | Light                | `uint8`  | See [On/Off Values](#onoff-values)                |
 | 66  | Active               | `uint8`  | Unknown.                                          |
 
-Key `66` is always set to `1` by the client immediately after connecting.
-
-Keys `2`, `3`, `7`, `8`, `18`, `19` are auto-refreshed in the app by writing the value `0`, causing the controller to reply with current values.
-
 ## Mode Values
 
 | Value | Intent                                                |
@@ -73,5 +51,27 @@ Keys `2`, `3`, `7`, `8`, `18`, `19` are auto-refreshed in the app by writing the
 
 | Value | Intent |
 | ----- | ------ |
-| 1     | On     |
-| 2     | Off    |
+| 1     | Off    |
+| 2     | On     |
+
+# Initialization
+
+This section describes the initialization sequence that the bluetooth module and app perform. It is not necessary and is documented here only for completeness.
+
+The board starts by sending in ASCII an AT command to the bluetooth module.
+
+```
+AT+NAME?\r\n
+```
+
+The module responds in ASCII with its name.
+
+```
+\r\n+NAME:KT2025040004510\r\nOK\r\n
+```
+
+From this point on the board and module communicate in packets.
+
+The app immediately sets the `Active` (`66`) key to `1`, apparently in response to the control board sending a value of `2`. This appears to happen at connection start.
+
+Keys `2`, `3`, `7`, `8`, `18`, `19` are auto-refreshed in the app by writing the value `0`, causing the controller to reply with current values.
