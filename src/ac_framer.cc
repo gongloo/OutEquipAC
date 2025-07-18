@@ -2,12 +2,18 @@
 
 #include <cstring>
 
-#define FRAME_LENGTH_BYTE 2
-#define FRAME_KEY_BYTE 4
-#define FRAME_VALUE_BYTE 5
+namespace {
+
+enum FrameBytePos {
+  Length = 2,
+  Key = 4,
+  Value = 5
+};
 
 constexpr uint8_t kPreamble[] = {0x5a, 0x5a};
 constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
+
+}  // namespace
 
 bool ACFramer::FrameData(const uint8_t data) {
   // Check if we have space in the buffer
@@ -36,18 +42,21 @@ bool ACFramer::FrameData(const uint8_t data) {
   return true;
 }
 
-void ACFramer::Reset() { buffer_pos_ = 0; }
+void ACFramer::Reset() {
+  memset(buffer_, 0, sizeof(buffer_));
+  buffer_pos_ = 0;
+}
 
 ACFramer::Key ACFramer::GetKey() const {
-  return static_cast<Key>(buffer_[FRAME_KEY_BYTE]);
+  return static_cast<Key>(buffer_[FrameBytePos::Key]);
 }
 
 uint16_t ACFramer::GetValue() const {
   switch (GetValueLength()) {
     case 1:
-      return buffer_[FRAME_VALUE_BYTE];
+      return buffer_[FrameBytePos::Value];
     case 2:
-      return (buffer_[FRAME_VALUE_BYTE] << 8) | buffer_[FRAME_VALUE_BYTE + 1];
+      return (buffer_[FrameBytePos::Value] << 8) | buffer_[FrameBytePos::Value + 1];
   }
   return 0;
 }
@@ -61,7 +70,7 @@ bool ACFramer::NewFrame(Key key, uint16_t value) {
   buffer_pos_ += sizeof(kPreamble);
 
   // Length
-  assert(buffer_pos_ == FRAME_LENGTH_BYTE);
+  assert(buffer_pos_ == FrameBytePos::Length);
   bool long_value = value > UINT8_MAX;
   buffer_[buffer_pos_++] = sizeof(kPostamble) + 3 /* unknown, key, checksum */ +
                            (long_value ? 2 : 1);
@@ -70,11 +79,11 @@ bool ACFramer::NewFrame(Key key, uint16_t value) {
   buffer_[buffer_pos_++] = 1;
 
   // Key
-  assert(buffer_pos_ == FRAME_KEY_BYTE);
+  assert(buffer_pos_ == FrameBytePos::Key);
   buffer_[buffer_pos_++] = static_cast<uint8_t>(key);
 
   // Value
-  assert(buffer_pos_ == FRAME_VALUE_BYTE);
+  assert(buffer_pos_ == FrameBytePos::Value);
   if (long_value) {
     buffer_[buffer_pos_++] = static_cast<uint8_t>(value >> 8);
     buffer_[buffer_pos_++] = static_cast<uint8_t>(value);
@@ -97,10 +106,10 @@ bool ACFramer::NewFrame(Key key, uint16_t value) {
 }
 
 uint8_t ACFramer::GetLength() const {
-  if (buffer_pos_ <= FRAME_LENGTH_BYTE) {
+  if (buffer_pos_ <= FrameBytePos::Length) {
     return 0;
   }
-  return buffer_[FRAME_LENGTH_BYTE];
+  return buffer_[FrameBytePos::Length];
 }
 
 uint8_t ACFramer::GetValueLength() const {
@@ -111,7 +120,7 @@ uint8_t ACFramer::GetValueLength() const {
 }
 
 bool ACFramer::HasFullFrame() const {
-  static_assert(FRAME_LENGTH_BYTE < sizeof(kPreamble) + 1);
+  static_assert(FrameBytePos::Length < sizeof(kPreamble) + 1);
   return (buffer_pos_ == GetLength() + sizeof(kPreamble) + 1);
 }
 
@@ -127,7 +136,7 @@ bool ACFramer::ValidateFrame() const {
   }
 
   // Validate key.
-  if (!ValidateKey(buffer_[FRAME_KEY_BYTE])) {
+  if (!ValidateKey(buffer_[FrameBytePos::Key])) {
     return false;  // Invalid key
   }
 
