@@ -156,7 +156,6 @@ class ACFramer {
 
   uint8_t buffer_[kMaxFrameSize];
   uint8_t buffer_pos_;
-  bool has_full_frame_;
 };
 
 #endif  // __AC_FRAMER_H__
