@@ -6,8 +6,8 @@
 #define FRAME_KEY_BYTE 4
 #define FRAME_VALUE_BYTE 5
 
-const uint8_t kPreamble[2] = {0x5a, 0x5a};
-const uint8_t kPostamble[2] = {0x0d, 0x0a};
+constexpr uint8_t kPreamble[] = {0x5a, 0x5a};
+constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
 
 bool ACFramer::FrameData(const uint8_t data) {
   // Check if we have space in the buffer
@@ -52,7 +52,7 @@ uint16_t ACFramer::GetValue() const {
   return 0;
 }
 
-void ACFramer::NewFrame(Key key, uint16_t value) {
+bool ACFramer::NewFrame(Key key, uint16_t value) {
   Reset();
 
   // Preamble.
@@ -93,7 +93,7 @@ void ACFramer::NewFrame(Key key, uint16_t value) {
   memcpy(buffer_ + buffer_pos_, kPostamble, sizeof(kPostamble));
   buffer_pos_ += sizeof(kPostamble);
 
-  // assert(ValidateFrame());
+  return ValidateFrame();
 }
 
 uint8_t ACFramer::GetLength() const {
@@ -121,10 +121,13 @@ bool ACFramer::ValidateFrame() const {
     return false;  // No full frame to validate
   }
 
-  // No need to validate preamble as it is already checked in FrameData
+  // Validate preamble.
+  if (memcmp(buffer_, kPreamble, sizeof(kPreamble)) != 0) {
+    return false;  // Invalid preamble
+  }
 
   // Validate key.
-  if (!ValidateKey()) {
+  if (!ValidateKey(buffer_[FRAME_KEY_BYTE])) {
     return false;  // Invalid key
   }
 
@@ -147,8 +150,8 @@ bool ACFramer::ValidateFrame() const {
   return true;  // Frame is valid
 }
 
-bool ACFramer::ValidateKey() const {
-  Key k = static_cast<Key>(buffer_[FRAME_KEY_BYTE]);
+bool ACFramer::ValidateKey(uint8_t data) {
+  Key k = static_cast<Key>(data);
   switch (k) {
     case Key::Power:
     case Key::Mode:
