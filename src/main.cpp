@@ -150,6 +150,7 @@ void DumpHexAndAscii(const uint8_t c) {
   }
 }
 
+// cppcheck-suppress unusedFunction
 void setup() {
   Serial.begin(115200);
   // Wait for serial console to open.
@@ -206,6 +207,7 @@ void setup() {
   server.begin();
 }
 
+// cppcheck-suppress unusedFunction
 void loop() {
   // Check if we're connected (or recently attempted reconnecting to) WiFi.
   if (WiFi.status() != WL_CONNECTED &&
