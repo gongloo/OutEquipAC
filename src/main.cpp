@@ -103,7 +103,7 @@ void HandleSet(AsyncWebServerRequest* request) {
   mSerial.println("HandleSet()");
   auto params = request->params();
   for (int i = 0; i < params; i++) {
-    auto p = request->getParam(i);
+    const auto *p = request->getParam(i);
     mSerial.printf("%s: %s\n", p->name(), p->value());
     if (p->isFile() || !p->isPost()) {
       continue;
