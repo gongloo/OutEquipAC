@@ -131,6 +131,53 @@ bool ACFramer::ValidateFrame() const {
     return false;  // Invalid key
   }
 
+  // Validate value.
+  switch (GetKey()) {
+    case Key::Power:
+    case Key::LCD:
+    case Key::Swing:
+    case Key::Light:
+      switch (static_cast<OnOffValue>(GetValue())) {
+        case OnOffValue::Query:
+        case OnOffValue::Off:
+        case OnOffValue::On:
+          break;
+        default:
+          return false;
+      }
+      break;
+    case Key::Mode:
+      switch(static_cast<ModeValue>(GetValue())) {
+        case ModeValue::Query:
+        case ModeValue::Cool:
+        case ModeValue::Heat:
+        case ModeValue::Fan:
+        case ModeValue::Eco:
+        case ModeValue::Sleep:
+        case ModeValue::Turbo:
+        case ModeValue::Wet:
+          break;
+        default:
+          return false;
+      }
+      break;
+    case Key::FanSpeed:
+      if (GetValue() > 5) {
+        return false;
+      }
+      break;
+    case Key::SetTemperature:
+    case Key::UndervoltProtect:
+    case Key::OvervoltProtect:
+    case Key::IntakeAirTemp:
+    case Key::OutletAirTemp:
+    case Key::Voltage:
+    case Key::Amperage:
+    case Key::Active:
+      // Allow any value.
+      break;
+  }
+
   // Validate checksum.
   uint8_t checksum = 0;
   for (size_t i = 0; i < buffer_pos_ - sizeof(kPostamble) - 1; ++i) {
