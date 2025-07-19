@@ -1,7 +1,7 @@
 #include "ac_framer.h"
 
-#include <cstring>
 #include <cassert>
+#include <cstring>
 
 namespace {
 
@@ -54,14 +54,13 @@ uint16_t ACFramer::GetValue() const {
     case 1:
       return buffer_[FrameBytePos::Value];
     case 2:
-      return (buffer_[FrameBytePos::Value] << 8) | buffer_[FrameBytePos::Value + 1];
+      return (buffer_[FrameBytePos::Value] << 8) |
+             buffer_[FrameBytePos::Value + 1];
   }
   return 0;
 }
 
-uint8_t ACFramer::GetUnknown() const {
-  return buffer_[FrameBytePos::Unknown];
-}
+uint8_t ACFramer::GetUnknown() const { return buffer_[FrameBytePos::Unknown]; }
 
 // cppcheck-suppress unusedFunction
 bool ACFramer::NewFrame(Key key, uint16_t value) {
