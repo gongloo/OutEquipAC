@@ -12,22 +12,22 @@ class ACFramer {
   // Write frame with this value to query board for current state.
   static const uint8_t kQueryVal = 0;
 
-    enum class Key {
-      Power = 0x01,
-      Mode = 0x02,
-      SetTemperature = 0x03,
-      FanSpeed = 0x04,
-      UndervoltProtect = 0x05,
-      OvervoltProtect = 0x06,
-      IntakeAirTemp = 0x07,
-      OutletAirTemp = 0x08,
-      LCD = 0x0a,
-      Swing = 0x10,
-      Voltage = 0x12,
-      Amperage = 0x13,
-      Light = 0x1c,
-      Active = 0x42
-    };
+  enum class Key {
+    Power = 0x01,
+    Mode = 0x02,
+    SetTemperature = 0x03,
+    FanSpeed = 0x04,
+    UndervoltProtect = 0x05,
+    OvervoltProtect = 0x06,
+    IntakeAirTemp = 0x07,
+    OutletAirTemp = 0x08,
+    LCD = 0x0a,
+    Swing = 0x10,
+    Voltage = 0x12,
+    Amperage = 0x13,
+    Light = 0x1c,
+    Active = 0x42
+  };
 
     enum class OnOffValue {
       Query = 0x00,
@@ -46,8 +46,8 @@ class ACFramer {
     Wet = 0x07
   };
 
-    static constexpr const char* KeyToString(Key k) {
-      switch (k) {
+  static constexpr const char* KeyToString(Key k) {
+    switch (k) {
         case Key::Power: return "Power";
         case Key::Mode: return "Mode";
         case Key::SetTemperature: return "Set Temperature";
@@ -145,6 +145,7 @@ class ACFramer {
   bool HasFullFrame() const;
   Key GetKey() const;
   uint16_t GetValue() const;
+  uint8_t GetUnknown() const;
 
   const uint8_t* buffer() const { return buffer_; }
   uint8_t buffer_pos() const { return buffer_pos_; }

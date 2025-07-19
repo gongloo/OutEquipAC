@@ -261,8 +261,13 @@ void loop() {
     } else if (rxFramer.HasFullFrame()) {
       auto key = rxFramer.GetKey();
       auto value = rxFramer.GetValue();
+      auto unknown = rxFramer.GetUnknown();
       rxFramer.Reset();
       mSerial.printf("Rx: %s: %d\n", ACFramer::KeyToString(key), value);
+      if (unknown != 0x01) {
+        mSerial.printf("Found unexpected value in Unknown byte: 0x%02x\n",
+                       unknown);
+      }
 
       // Check if we got a response to our current outstanding query.
       if (key == kQueryKeys[cur_query_key_idx]) {

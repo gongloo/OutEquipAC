@@ -4,11 +4,7 @@
 
 namespace {
 
-enum FrameBytePos {
-  Length = 2,
-  Key = 4,
-  Value = 5
-};
+enum FrameBytePos { Length = 2, Unknown = 3, Key = 4, Value = 5 };
 
 constexpr uint8_t kPreamble[] = {0x5a, 0x5a};
 constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
@@ -60,6 +56,10 @@ uint16_t ACFramer::GetValue() const {
       return (buffer_[FrameBytePos::Value] << 8) | buffer_[FrameBytePos::Value + 1];
   }
   return 0;
+}
+
+uint8_t ACFramer::GetUnknown() const {
+  return buffer_[FrameBytePos::Unknown];
 }
 
 // cppcheck-suppress unusedFunction
@@ -158,7 +158,7 @@ bool ACFramer::ValidateFrame() const {
       }
       break;
     case Key::Mode:
-      switch(static_cast<ModeValue>(GetValue())) {
+      switch (static_cast<ModeValue>(GetValue())) {
         case ModeValue::Query:
         case ModeValue::Cool:
         case ModeValue::Heat:
