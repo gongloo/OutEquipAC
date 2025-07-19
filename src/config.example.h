@@ -7,7 +7,3 @@
 // Hardware pins.
 #define AC_TX_PIN 16
 #define AC_RX_PIN 18
-
-// Over-The-Air firmware updates are password-protected.
-#define OTA_USER "..."
-#define OTA_PASS "..."  // Note these credentials are sent unencrypted!
