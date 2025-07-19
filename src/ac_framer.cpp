@@ -1,6 +1,7 @@
 #include "ac_framer.h"
 
 #include <cstring>
+#include <cassert>
 
 namespace {
 
