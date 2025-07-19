@@ -97,27 +97,28 @@ bool EnqueueFrame(ACFramer::Key key, uint16_t value) {
   return true;
 }
 
+bool TrySet(const String& key, const String& value) {
+  auto k = std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
+                        [key](auto k) { return key == ACFramer::KeyToId(k); });
+  if (k != std::end(kSetKeys)) {
+    EnqueueFrame(*k, ACFramer::kQueryVal);
+    return EnqueueFrame(*k, value.toInt());
+  }
+  return false;
+}
+
 void HandleSet(AsyncWebServerRequest* request) {
   String response;
 
   mSerial.println("HandleSet()");
   auto params = request->params();
   for (int i = 0; i < params; i++) {
-    const auto *p = request->getParam(i);
-    mSerial.printf("%s: %s\n", p->name(), p->value());
+    const auto* p = request->getParam(i);
     if (p->isFile() || !p->isPost()) {
       continue;
     }
-    mSerial.printf("Got POST param: %s\n", p->name());
-
-    auto k =
-        std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
-                     [p](auto k) { return p->name() == ACFramer::KeyToId(k); });
-    if (k != std::end(kSetKeys)) {
-      EnqueueFrame(*k, ACFramer::kQueryVal);
-      if (!EnqueueFrame(*k, p->value().toInt())) {
-        response += "Invalid " + p->name() + " value :" + p->value() + "\n";
-      }
+    if (!TrySet(p->name(), p->value())) {
+      response += "Invalid " + p->name() + " value :" + p->value() + "\n";
     }
   }
 
@@ -125,6 +126,18 @@ void HandleSet(AsyncWebServerRequest* request) {
 }
 
 void HandleWebSerialMessage(const String& message) {
+  if (message.startsWith("set ")) {
+    auto valueDelimiter = message.indexOf('=');
+    if (valueDelimiter == -1) {
+      mSerial.println("Invalid set command. Syntax: set <key>=<value>");
+      return;
+    }
+    const String key = message.substring(4, valueDelimiter);
+    const String value = message.substring(valueDelimiter + 1);
+    if (!TrySet(key, value)) {
+      mSerial.printf("Invalid key (%s) or value (%s).\n", key, value);
+    }
+  }
   mSerial.println("Unknown command.");
 }
 
@@ -200,6 +213,10 @@ void setup() {
   ElegantOTA.begin(&server, OTA_USER, OTA_PASS);
 
   // Web Server
+  server.on("/", [](AsyncWebServerRequest* request) {
+    request->send(200, "text/plain",
+                  HOSTNAME " " VERSION " (Built " BUILD_TIMESTAMP ")");
+  });
   server.on("/set", HTTP_POST, HandleSet);
   server.onNotFound([](AsyncWebServerRequest* request) {
     request->send(404, "text/plain", "404: Not found");
