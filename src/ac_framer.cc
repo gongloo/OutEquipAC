@@ -15,6 +15,7 @@ constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
 
 }  // namespace
 
+// cppcheck-suppress unusedFunction
 bool ACFramer::FrameData(const uint8_t data) {
   // Check if we have space in the buffer
   if (buffer_pos_ >= sizeof(buffer_)) {
@@ -61,6 +62,7 @@ uint16_t ACFramer::GetValue() const {
   return 0;
 }
 
+// cppcheck-suppress unusedFunction
 bool ACFramer::NewFrame(Key key, uint16_t value) {
   Reset();
 

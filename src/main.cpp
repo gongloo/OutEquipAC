@@ -110,13 +110,13 @@ void HandleSet(AsyncWebServerRequest* request) {
     }
     mSerial.printf("Got POST param: %s\n", p->name());
 
-    for (auto k : kSetKeys) {
-      if (p->name() == ACFramer::KeyToId(k)) {
-        EnqueueFrame(k, ACFramer::kQueryVal);
-        if (!EnqueueFrame(k, p->value().toInt())) {
-          response += "Invalid " + p->name() + " value :" + p->value() + "\n";
-        }
-        break;
+    auto k =
+        std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
+                     [p](auto k) { return p->name() == ACFramer::KeyToId(k); });
+    if (k != std::end(kSetKeys)) {
+      EnqueueFrame(*k, ACFramer::kQueryVal);
+      if (!EnqueueFrame(*k, p->value().toInt())) {
+        response += "Invalid " + p->name() + " value :" + p->value() + "\n";
       }
     }
   }
@@ -207,7 +207,6 @@ void setup() {
   server.begin();
 }
 
-// cppcheck-suppress unusedFunction
 void loop() {
   // Check if we're connected (or recently attempted reconnecting to) WiFi.
   if (WiFi.status() != WL_CONNECTED &&
