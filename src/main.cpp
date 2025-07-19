@@ -137,6 +137,7 @@ void HandleWebSerialMessage(const String& message) {
     if (!TrySet(key, value)) {
       mSerial.printf("Invalid key (%s) or value (%s).\n", key, value);
     }
+    return;
   }
   mSerial.println("Unknown command.");
 }
