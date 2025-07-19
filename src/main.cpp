@@ -1,5 +1,6 @@
 #ifdef ARDUINO
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
@@ -50,6 +51,20 @@ long last_frame_sent = 0;
 long last_full_status = 0;
 std::queue<ACFramer> txQueue;
 
+// Latest status from board.
+ACFramer::OnOffValue cur_power_state = ACFramer::OnOffValue::Query;
+ACFramer::ModeValue cur_mode = ACFramer::ModeValue::Query;
+uint8_t cur_set_temp = 0;
+uint8_t cur_fan_speed = 0;
+float cur_undervolt = std::nan("");
+uint16_t cur_overvolt = 0;
+uint16_t cur_intake_temp = 0;
+uint16_t cur_outlet_temp = 0;
+ACFramer::OnOffValue cur_lcd = ACFramer::OnOffValue::Query;
+float cur_voltage = std::nan("");
+float cur_amperage = std::nan("");
+ACFramer::OnOffValue cur_light = ACFramer::OnOffValue::Query;
+
 void ConnectWiFi() {
   last_wifi_connect_attempt = millis();
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -62,9 +77,9 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   ConnectWiFi();
 }
 
-void WriteFrame(const ACFramer& framer) {
-  mSerial.printf("Tx: %s: %d\n", ACFramer::KeyToString(framer.GetKey()),
-                 framer.GetValue());
+void WriteFrame(ACFramer& framer) {
+  mSerial.printf("Tx: %s=%s\n", framer.GetKeyAsString(),
+                 framer.GetValueAsString());
   acSerial.write(framer.buffer(), framer.buffer_pos());
   last_frame_sent = millis();
 }
@@ -92,15 +107,15 @@ bool EnqueueFrame(ACFramer::Key key, uint16_t value) {
   if (!txFramer.NewFrame(key, value)) {
     return false;
   }
-  mSerial.printf("Enqueued: %s: %d\n", ACFramer::KeyToString(txFramer.GetKey()),
-                 txFramer.GetValue());
+  mSerial.printf("Enqueued: %s=%s\n", txFramer.GetKeyAsString(),
+                 txFramer.GetValueAsString());
   txQueue.push(txFramer);
   return true;
 }
 
 bool TrySet(const String& key, const String& value) {
   auto k = std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
-                        [key](auto k) { return key == ACFramer::KeyToId(k); });
+                        [key](auto k) { return key == ACFramer::KeyToString(k); });
   if (k != std::end(kSetKeys)) {
     EnqueueFrame(*k, ACFramer::kQueryVal);
     return EnqueueFrame(*k, value.toInt());
@@ -124,6 +139,36 @@ void HandleSet(AsyncWebServerRequest* request) {
   }
 
   request->send(200, "text/plain", response);
+}
+
+bool convertToJson(const ACFramer::OnOffValue value, JsonVariant variant) {
+  return variant.set(ACFramer::OnOffValueToString(value));
+}
+
+bool convertToJson(const ACFramer::ModeValue value, JsonVariant variant) {
+  return variant.set(ACFramer::ModeValueToString(value));
+}
+
+void HandleVarDump(AsyncWebServerRequest* request) {
+  AsyncResponseStream* response =
+      request->beginResponseStream("application/json");
+  JsonDocument json_doc;
+
+  json_doc[ACFramer::KeyToString(ACFramer::Key::Power)] = cur_power_state;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::Mode)] = cur_mode;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::SetTemperature)] = cur_set_temp;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::FanSpeed)] = cur_fan_speed;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::UndervoltProtect)] = cur_undervolt;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::OvervoltProtect)] = cur_overvolt;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::IntakeAirTemp)] = cur_intake_temp;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::OutletAirTemp)] = cur_outlet_temp;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::LCD)] = cur_lcd;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::Voltage)] = cur_voltage;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::Amperage)] = cur_amperage;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::Light)] = cur_light;
+
+  serializeJsonPretty(json_doc, *response);
+  request->send(response);
 }
 
 void HandleWebSerialMessage(const String& message) {
@@ -168,10 +213,6 @@ void DumpHexAndAscii(const uint8_t c) {
 // cppcheck-suppress unusedFunction
 void setup() {
   Serial.begin(115200);
-  // Wait for serial console to open.
-  while (!Serial) {
-    delay(10);
-  }
   delay(2000);  // Wait for monitor to open.
   mSerial.printf("OutEquip AC v%s initializing...\n", VERSION);
 
@@ -220,6 +261,7 @@ void setup() {
                   HOSTNAME " " VERSION " (Built " BUILD_TIMESTAMP ")");
   });
   server.on("/set", HTTP_POST, HandleSet);
+  server.on("/var_dump", HandleVarDump);
   server.onNotFound([](AsyncWebServerRequest* request) {
     request->send(404, "text/plain", "404: Not found");
   });
@@ -263,11 +305,56 @@ void loop() {
       auto key = rxFramer.GetKey();
       auto value = rxFramer.GetValue();
       auto unknown = rxFramer.GetUnknown();
-      rxFramer.Reset();
-      mSerial.printf("Rx: %s: %d\n", ACFramer::KeyToString(key), value);
+      mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
+                     rxFramer.GetValueAsString());
       if (unknown != 0x01) {
         mSerial.printf("Found unexpected value in Unknown byte: 0x%02x\n",
                        unknown);
+      }
+      rxFramer.Reset();
+
+      // Save state.
+      switch (key) {
+        case ACFramer::Key::Power:
+          cur_power_state = static_cast<ACFramer::OnOffValue>(value);
+          break;
+        case ACFramer::Key::Mode:
+          cur_mode = static_cast<ACFramer::ModeValue>(value);
+          break;
+        case ACFramer::Key::SetTemperature:
+          cur_set_temp = value;
+          break;
+        case ACFramer::Key::FanSpeed:
+          cur_fan_speed = value;
+          break;
+        case ACFramer::Key::UndervoltProtect:
+          cur_undervolt = value / 10.0;
+          break;
+        case ACFramer::Key::OvervoltProtect:
+          cur_overvolt = value;
+          break;
+        case ACFramer::Key::IntakeAirTemp:
+          cur_intake_temp = value;
+          break;
+        case ACFramer::Key::OutletAirTemp:
+          cur_outlet_temp = value;
+          break;
+        case ACFramer::Key::LCD:
+          cur_lcd = static_cast<ACFramer::OnOffValue>(value);
+          break;
+        case ACFramer::Key::Voltage:
+          cur_voltage = value / 10.0;
+          break;
+        case ACFramer::Key::Amperage:
+          cur_amperage = value / 10.0;
+          break;
+        case ACFramer::Key::Light:
+          cur_light = static_cast<ACFramer::OnOffValue>(value);
+          break;
+        case ACFramer::Key::Swing:
+        case ACFramer::Key::Active:
+          // Ignore.
+          break;
       }
 
       // Check if we got a response to our current outstanding query.

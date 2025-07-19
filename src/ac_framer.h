@@ -2,6 +2,7 @@
 #define __AC_FRAMER_H__
 
 #include <cstdint>
+#include <string>
 
 class ACFramer {
  public:
@@ -29,11 +30,7 @@ class ACFramer {
     Active = 0x42
   };
 
-    enum class OnOffValue {
-      Query = 0x00,
-      Off = 0x01,
-      On = 0x02
-    };
+  enum class OnOffValue { Query = 0x00, Off = 0x01, On = 0x02 };
 
   enum class ModeValue {
     Query = 0x00,
@@ -48,40 +45,34 @@ class ACFramer {
 
   static constexpr const char* KeyToString(Key k) {
     switch (k) {
-        case Key::Power: return "Power";
-        case Key::Mode: return "Mode";
-        case Key::SetTemperature: return "Set Temperature";
-        case Key::FanSpeed: return "Fan Speed";
-        case Key::UndervoltProtect: return "Undervolt Protection";
-        case Key::OvervoltProtect: return "Overvolt Protection";
-        case Key::IntakeAirTemp: return "Intake Air Temperature";
-        case Key::OutletAirTemp: return "Outlet Air Temperature";
-        case Key::LCD: return "LCD";
-        case Key::Swing: return "Swing";
-        case Key::Voltage: return "Voltage";
-        case Key::Amperage: return "Amperage";
-        case Key::Light: return "Light";
-        case Key::Active: return "Active";
-    }
-    return "Invalid Key";
-  }
-
-  static constexpr const char* KeyToId(Key k) {
-    switch (k) {
-      case Key::Power: return "power";
-      case Key::Mode: return "mode";
-      case Key::SetTemperature: return "temperature";
-      case Key::FanSpeed: return "fan";
-      case Key::UndervoltProtect: return "undervolt";
-      case Key::OvervoltProtect: return "overvolt";
-      case Key::IntakeAirTemp: return "intake";
-      case Key::OutletAirTemp: return "outlet";
-      case Key::LCD: return "lcd";
-      case Key::Swing: return "swing";
-      case Key::Voltage: return "voltage";
-      case Key::Amperage: return "amperage";
-      case Key::Light: return "light";
-      case Key::Active: return "active";
+      case Key::Power:
+        return "power";
+      case Key::Mode:
+        return "mode";
+      case Key::SetTemperature:
+        return "setTemp";
+      case Key::FanSpeed:
+        return "fan";
+      case Key::UndervoltProtect:
+        return "undervolt";
+      case Key::OvervoltProtect:
+        return "overvolt";
+      case Key::IntakeAirTemp:
+        return "intakeTemp";
+      case Key::OutletAirTemp:
+        return "outletTemp";
+      case Key::LCD:
+        return "lcd";
+      case Key::Swing:
+        return "swing";
+      case Key::Voltage:
+        return "voltage";
+      case Key::Amperage:
+        return "amperage";
+      case Key::Light:
+        return "light";
+      case Key::Active:
+        return "active";
     }
     return "invalid";
   }
@@ -89,35 +80,35 @@ class ACFramer {
   static constexpr const char* OnOffValueToString(OnOffValue v) {
     switch (v) {
       case OnOffValue::Query:
-        return "Query";
+        return "query";
       case OnOffValue::On:
-        return "On";
+        return "on";
       case OnOffValue::Off:
-        return "Off";
+        return "off";
     }
-    return "Invalid OnOffValue";
+    return "invalid";
   }
 
   static constexpr const char* ModeValueToString(ModeValue v) {
     switch (v) {
       case ModeValue::Query:
-        return "Query";
+        return "query";
       case ModeValue::Cool:
-        return "Cool";
+        return "cool";
       case ModeValue::Heat:
-        return "Heat";
+        return "heat";
       case ModeValue::Fan:
-        return "Fan";
+        return "fan";
       case ModeValue::Eco:
-        return "Eco";
+        return "eco";
       case ModeValue::Sleep:
-        return "Sleep";
+        return "sleep";
       case ModeValue::Turbo:
-        return "Turbo";
+        return "turbo";
       case ModeValue::Wet:
-        return "Wet";
+        return "wet";
     }
-    return "Invalid ModeValue";
+    return "invalid";
   }
 
   static bool ValidateKey(uint8_t data);
@@ -144,7 +135,14 @@ class ACFramer {
 
   bool HasFullFrame() const;
   Key GetKey() const;
+  const char* GetKeyAsString() const;
   uint16_t GetValue() const;
+  /**
+   * @brief Get the Value as a human-readable string.
+   * 
+   * @return const char* value representation as null-terminated c-string. Only valid for the lifetime of this object.
+   */
+  const char* GetValueAsString();
   uint8_t GetUnknown() const;
 
   const uint8_t* buffer() const { return buffer_; }
@@ -157,6 +155,9 @@ class ACFramer {
 
   uint8_t buffer_[kMaxFrameSize];
   uint8_t buffer_pos_;
+
+  // Storage for string representation of value, as needed.
+  char val_str_[7];
 };
 
 #endif  // __AC_FRAMER_H__

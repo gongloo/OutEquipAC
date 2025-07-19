@@ -42,12 +42,15 @@ bool ACFramer::FrameData(const uint8_t data) {
 
 void ACFramer::Reset() {
   memset(buffer_, 0, sizeof(buffer_));
+  memset(val_str_, 0, sizeof(val_str_));
   buffer_pos_ = 0;
 }
 
 ACFramer::Key ACFramer::GetKey() const {
   return static_cast<Key>(buffer_[FrameBytePos::Key]);
 }
+
+const char* ACFramer::GetKeyAsString() const { return KeyToString(GetKey()); }
 
 uint16_t ACFramer::GetValue() const {
   switch (GetValueLength()) {
@@ -58,6 +61,32 @@ uint16_t ACFramer::GetValue() const {
              buffer_[FrameBytePos::Value + 1];
   }
   return 0;
+}
+
+const char* ACFramer::GetValueAsString() {
+  switch (GetKey()) {
+    case Key::Power:
+    case Key::LCD:
+    case Key::Swing:
+    case Key::Light:
+      return OnOffValueToString(static_cast<OnOffValue>(GetValue()));
+    case Key::Mode:
+      return ModeValueToString(static_cast<ModeValue>(GetValue()));
+    case Key::FanSpeed:
+    case Key::SetTemperature:
+    case Key::OvervoltProtect:
+    case Key::IntakeAirTemp:
+    case Key::OutletAirTemp:
+    case Key::Active:
+      snprintf(val_str_, sizeof(val_str_), "%d", GetValue());
+      return val_str_;
+    case Key::UndervoltProtect:
+    case Key::Voltage:
+    case Key::Amperage:
+      snprintf(val_str_, sizeof(val_str_), "%.1f", GetValue() / 10.0);
+      return val_str_;
+  }
+  return "invalid";
 }
 
 uint8_t ACFramer::GetUnknown() const { return buffer_[FrameBytePos::Unknown]; }
