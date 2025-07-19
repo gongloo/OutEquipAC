@@ -114,8 +114,9 @@ bool EnqueueFrame(ACFramer::Key key, uint16_t value) {
 }
 
 bool TrySet(const String& key, const String& value) {
-  auto k = std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
-                        [key](auto k) { return key == ACFramer::KeyToString(k); });
+  auto k =
+      std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
+                   [key](auto k) { return key == ACFramer::KeyToString(k); });
   if (k != std::end(kSetKeys)) {
     EnqueueFrame(*k, ACFramer::kQueryVal);
     return EnqueueFrame(*k, value.toInt());
@@ -158,10 +159,14 @@ void HandleVarDump(AsyncWebServerRequest* request) {
   json_doc[ACFramer::KeyToString(ACFramer::Key::Mode)] = cur_mode;
   json_doc[ACFramer::KeyToString(ACFramer::Key::SetTemperature)] = cur_set_temp;
   json_doc[ACFramer::KeyToString(ACFramer::Key::FanSpeed)] = cur_fan_speed;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::UndervoltProtect)] = cur_undervolt;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::OvervoltProtect)] = cur_overvolt;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::IntakeAirTemp)] = cur_intake_temp;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::OutletAirTemp)] = cur_outlet_temp;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::UndervoltProtect)] =
+      cur_undervolt;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::OvervoltProtect)] =
+      cur_overvolt;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::IntakeAirTemp)] =
+      cur_intake_temp;
+  json_doc[ACFramer::KeyToString(ACFramer::Key::OutletAirTemp)] =
+      cur_outlet_temp;
   json_doc[ACFramer::KeyToString(ACFramer::Key::LCD)] = cur_lcd;
   json_doc[ACFramer::KeyToString(ACFramer::Key::Voltage)] = cur_voltage;
   json_doc[ACFramer::KeyToString(ACFramer::Key::Amperage)] = cur_amperage;
