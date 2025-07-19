@@ -1,3 +1,4 @@
+#ifdef ARDUINO
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
@@ -283,3 +284,8 @@ void loop() {
     delay(10);
   }
 }
+#elif !defined(PIO_UNIT_TESTING)
+int main(int arc, char** argv) {
+  // Nothing to do for non-arduino environments.
+}
+#endif  // ARDUINO
