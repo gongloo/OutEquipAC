@@ -1,0 +1,16 @@
+{
+  "name": "OutEquipAC",
+  "short_name": "OutEqiupAC",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "black",
+  "background_color": "black",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "160x160",
+      "type": "image/png"
+    }
+  ]
+}

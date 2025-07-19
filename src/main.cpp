@@ -4,6 +4,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
+#include <LittleFS.h>
 #include <WebSerial.h>
 #include <WiFi.h>
 
@@ -260,13 +261,18 @@ void setup() {
   // OTA Updates
   ElegantOTA.begin(&server, OTA_USER, OTA_PASS);
 
+  // SPI Flash Files System
+  LittleFS.begin();
+
   // Web Server
-  server.on("/", [](AsyncWebServerRequest* request) {
+  server.on("/set", HTTP_POST, HandleSet);
+  server.on("/var_dump", HandleVarDump);
+  server.on("/version", [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain",
                   HOSTNAME " " VERSION " (Built " BUILD_TIMESTAMP ")");
   });
-  server.on("/set", HTTP_POST, HandleSet);
-  server.on("/var_dump", HandleVarDump);
+  server.serveStatic("/", LittleFS, "/htdocs/")
+      .setDefaultFile("thermostat.html");
   server.onNotFound([](AsyncWebServerRequest* request) {
     request->send(404, "text/plain", "404: Not found");
   });

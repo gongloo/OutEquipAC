@@ -1,0 +1,329 @@
+﻿<html>
+
+<head>
+	<title>OutEquipAC</title>
+	<link rel="apple-touch-icon" href="apple-touch-icon.png">
+	<link rel="manifest" href="manifest.webmanifest">
+	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<style type="text/css">
+		:root {
+			--light-fillcolor: steelblue;
+			--dark-fillcolor: hsl(207, 100%, 33%);
+		}
+
+
+		#set,
+		#status,
+		#fan_speed,
+		#set_temps,
+		#switch {
+			display: flex;
+			justify-content: space-evenly;
+			align-items: stretch;
+		}
+
+		#status {
+			align-items: center
+		}
+
+		#switch,
+		#status,
+		#set {
+			margin-top: 0.25em;
+		}
+
+		#status,
+		#set {
+			gap: 0.25em;
+		}
+
+		#status,
+		#fan_speed,
+		#set_temps,
+		#switch {
+			border-radius: 0.5em;
+			overflow: hidden;
+		}
+
+		#fan_block,
+		#fan_speed,
+		#set_temps {
+			flex-direction: column;
+			flex-grow: 1;
+			text-align: center;
+		}
+
+		#set {
+			--set-color: black;
+			--triangle-width: 1em;
+			color: var(--set-color);
+		}
+
+		#switch.off~#set {
+			opacity: 50%;
+			--set-color: dimgrey;
+		}
+
+		#set,
+		#set a {
+			transition: 0.3s;
+		}
+
+		#up::after,
+		#down::after {
+			display: block;
+			width: var(--triangle-width);
+			height: .87em;
+			margin: 0.57em auto;
+			background-size: calc(var(--triangle-width) / 2) 100%;
+			background-repeat: no-repeat;
+			background-position: left, right;
+			content: " ";
+		}
+
+		#up::after {
+			background-image:
+				linear-gradient(to bottom right, transparent 50%, var(--set-color) 0),
+				linear-gradient(to top right, var(--set-color) 50%, transparent 0);
+		}
+
+		#down::after {
+			background-image:
+				linear-gradient(to top right, transparent 50%, var(--set-color) 0),
+				linear-gradient(to bottom right, var(--set-color) 50%, transparent 0);
+		}
+
+		#set_temp,
+		.button {
+			display: block;
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			border-top: 1px solid var(--divider-color);
+		}
+
+		.button:first-child {
+			border-top: none;
+		}
+
+		#set_temp {
+			height: 50%;
+			padding: 0.25em 0em;
+		}
+
+		.button:active {
+			background: linear-gradient(#aaa, #ddd);
+		}
+
+		#status,
+		#set_temps,
+		#fan_speed,
+		#switch {
+			background: linear-gradient(#ddd, #aaa);
+		}
+
+		#fan_speed {
+			cursor: pointer;
+		}
+
+		body {
+			background-color: black;
+			font-family: sans-serif;
+			font-weight: bold;
+			font-size: 48pt;
+			margin: 0;
+		}
+
+		#contents {
+			width: 5em;
+			margin-left: auto;
+			margin-right: auto;
+			--divider-color: dimgrey;
+		}
+
+		#title {
+			font-size: 40pt;
+			width: 100%;
+			text-align: center;
+			padding: 0.5em 0;
+			color: black;
+			background: linear-gradient(var(--light-fillcolor), var(--dark-fillcolor));
+		}
+
+		#title .emphasis {
+			color: silver;
+			text-shadow: 0 0 0.05em black;
+		}
+
+		#switch div {
+			height: 2em;
+			cursor: pointer;
+			font-weight: bolder;
+			font-size: 50%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin: 0;
+			color: dimgrey;
+			border-left: 1px solid var(--divider-color);
+			flex-grow: 1;
+		}
+
+		#switch .selected,
+		.button.selected {
+			color: black;
+			background: linear-gradient(var(--dark-fillcolor), var(--light-fillcolor));
+		}
+
+		#off.selected {
+			color: silver;
+			background: linear-gradient(#333, #666);
+		}
+
+		#switch div:first-child {
+			border: none;
+			padding-left: 0.5ex;
+			border-radius: 1em 0em 0em 1em;
+		}
+
+		#switch div:last-child {
+			padding-right: 0.5ex;
+			border-radius: 0em 1em 1em 0em;
+		}
+	</style>
+	<meta name="theme-color" content="var(--light-fillcolor)">
+	<script>
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker.register('sw.js');
+		};
+	</script>
+</head>
+
+<body class="off">
+	<div id="title"><span class="emphasis">OutEqiup</span>AC</div>
+	<div id="contents">
+		<div id="switch">
+			<div id="off" onclick="setMode('off')">Off</div>
+			<div id="cool" onclick="setMode('cool')">Cool</div>
+			<div id="heat" onclick="setMode('heat')">Heat</div>
+		</div>
+		<div id="status">
+			<span id="cur_temp" class="temp">?</span>
+		</div>
+		<div id="set">
+			<div id="set_temps">
+				<a id="up" class="button" href="#" onclick="adjust(1)"></a>
+				<span id="set_temp" class="temp" contenteditable="true" inputmode="decimal"
+					onKeypress="if(event.keyCode < 48 || event.keyCode > 57){return false;}"
+					onfocusout="doneEditingTemp()">?</span>
+				<a id="down" class="button" href="#" onclick="adjust(-1)"></a>
+			</div>
+			<div id="fan_block">
+				<div id="fan_speed">
+					<span id="fan5" class="button" onclick="setFan(5)">5</span>
+					<span id="fan4" class="button" onclick="setFan(4)">4</span>
+					<span id="fan3" class="button" onclick="setFan(3)">3</span>
+					<span id="fan2" class="button" onclick="setFan(2)">2</span>
+					<span id="fan1" class="button" onclick="setFan(1)">1</span>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		function RoundedCtoF(c) {
+			if (c == null) {
+				return "?";
+			}
+			return Math.round(c * 9 / 5 + 32);
+		}
+		function FtoC(f) {
+			return ((f - 32) * 5 / 9);
+		}
+		function gotMode(mode) {
+			document.getElementById("switch").setAttribute("class", mode == "off" ? "off" : "");
+			document.getElementById("off").setAttribute("class", mode == "off" ? "selected" : "");
+			document.getElementById("cool").setAttribute("class", mode == "cool" ? "selected" : "");
+			document.getElementById("heat").setAttribute("class", mode == "heat" ? "selected" : "");
+		}
+		function postSet(params) {
+			fetch('set', {
+				method: "POST",
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: params,
+			});
+		}
+		function setMode(mode) {
+			gotMode(mode);
+			var params = new URLSearchParams();
+			if (mode == "off") {
+				params.append('power', 1);
+			} else {
+				params.append('power', 2);
+				if (mode == "cool") {
+					params.append('mode', 1);
+				} else {
+					params.append('mode', 2);
+				}
+			}
+			postSet(params);
+		}
+		function adjust(amount) {
+			var new_temp_in_c = Math.round(FtoC(Number(document.getElementById("set_temp").innerHTML)) + amount);
+			var params = new URLSearchParams([['setTemp', new_temp_in_c]]);
+			postSet(params);
+		}
+		function doneEditingTemp() {
+			adjust(0);
+		}
+		function gotFan(speed) {
+			for (var i = 1; i <= 5; i++) {
+				if (i == speed) continue;
+				document.getElementById("fan" + i).setAttribute("class", "button");
+			}
+			document.getElementById("fan" + speed).setAttribute("class", "button selected");
+		}
+		function setFan(speed) {
+			gotFan(speed);
+			var params = new URLSearchParams([['fan', speed]]);
+			postSet(params);
+		}
+		function handle_var_dump() {
+			if (this.readyState == 4 && this.status == 200) {
+				var dump = JSON.parse(this.responseText);
+				if (document.getElementById("set_temp") != document.activeElement) {
+					document.getElementById("set_temp").innerHTML = RoundedCtoF(dump.setTemp);
+				}
+				document.getElementById("cur_temp").innerHTML = RoundedCtoF(dump.intakeTemp);
+				if (dump.power != "on") {
+					gotMode("off");
+				} else if (dump.mode == "heat") {
+					gotMode("heat");
+				} else {
+					gotMode("cool");
+				}
+				gotFan(dump.fan);
+			}
+		}
+		function json_refresh() {
+			var xmlhttp = new XMLHttpRequest();
+			var url = "var_dump";
+			xmlhttp.onreadystatechange = handle_var_dump;
+			xmlhttp.open("GET", url, true);
+			xmlhttp.send();
+		}
+
+		var refresh_interval_id;
+		function start_autorefresh() {
+			refresh_interval_id = setInterval(json_refresh, 2000);
+		}
+		function stop_autorefresh() {
+			clearInterval(refresh_interval_id);
+		}
+
+		json_refresh();
+		start_autorefresh();
+
+	</script>
+</body>
+
+</html>
