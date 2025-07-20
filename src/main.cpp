@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+#include <optional>
 #include <queue>
 
 #include "Version.h"
@@ -53,6 +54,7 @@ size_t cur_query_key_idx = 0;
 long last_frame_sent = 0;
 long last_full_status = 0;
 std::queue<ACFramer> txQueue;
+std::optional<ACFramer::Key> expecting_key;
 
 // InfluxDB data point
 Point sensor("outequip-ac");
@@ -90,6 +92,7 @@ void WriteFrame(ACFramer& framer) {
     mSerial.printf("\t\t\tTx: %s=%s\n", framer.GetKeyAsString(),
                    framer.GetValueAsString());
   }
+  expecting_key = framer.GetKey();
   acSerial.write(framer.buffer(), framer.buffer_pos());
   last_frame_sent = millis();
 }
@@ -380,17 +383,32 @@ void loop() {
       }
 
       // Check if we got a response to our current outstanding query.
-      if (key == kQueryKeys[cur_query_key_idx]) {
-        // Sure did. Increment our query index.
-        if (++cur_query_key_idx >= sizeof(kQueryKeys) / sizeof(*kQueryKeys)) {
-          // We've finished our full set of queries this round.
-          cur_query_key_idx = 0;
-          last_full_status = millis();
+      if (expecting_key.has_value()) {
+        if (*expecting_key == key) {
+          expecting_key.reset();
+          if (key == kQueryKeys[cur_query_key_idx]) {
+            // Got our next query key. Increment our query index.
+            if (++cur_query_key_idx >=
+                sizeof(kQueryKeys) / sizeof(*kQueryKeys)) {
+              // We've finished our full set of queries this round.
+              cur_query_key_idx = 0;
+              last_full_status = millis();
+            }
+          } else {
+            mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
+                           rxFramer.GetValueAsString());
+          }
+        } else {
+          mSerial.printf("Unexpected response to %s: %s=%s\n",
+                         ACFramer::KeyToString(key), rxFramer.GetKeyAsString(),
+                         rxFramer.GetValueAsString());
         }
       } else {
-        mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
+        mSerial.printf("Unexpected frame: %s=%s\n", rxFramer.GetKeyAsString(),
                        rxFramer.GetValueAsString());
       }
+
+      // Finished with handling this received frame. Send off the next one.
       rxFramer.Reset();
       MaybeSendCurFrame();
     }
