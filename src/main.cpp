@@ -79,8 +79,10 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 void WriteFrame(ACFramer& framer) {
-  mSerial.printf("Tx: %s=%s\n", framer.GetKeyAsString(),
-                 framer.GetValueAsString());
+  if (framer.GetKey() != kQueryKeys[cur_query_key_idx]) {
+    mSerial.printf("\t\t\tTx: %s=%s\n", framer.GetKeyAsString(),
+                   framer.GetValueAsString());
+  }
   acSerial.write(framer.buffer(), framer.buffer_pos());
   last_frame_sent = millis();
 }
@@ -313,16 +315,14 @@ void loop() {
       mSerial.println();
       rxFramer.Reset();
     } else if (rxFramer.HasFullFrame()) {
-      auto key = rxFramer.GetKey();
-      auto value = rxFramer.GetValue();
-      auto unknown = rxFramer.GetUnknown();
-      mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
-                     rxFramer.GetValueAsString());
+      const auto key = rxFramer.GetKey();
+      const auto value = rxFramer.GetValue();
+      const auto unknown = rxFramer.GetUnknown();
       if (unknown != 0x01) {
-        mSerial.printf("Found unexpected value in Unknown byte: 0x%02x\n",
-                       unknown);
+        mSerial.printf("Unexpected Unknown byte: 0x%02x (frame %s=%s).\n",
+                       unknown, rxFramer.GetKeyAsString(),
+                       rxFramer.GetValueAsString());
       }
-      rxFramer.Reset();
 
       // Save state.
       switch (key) {
@@ -376,7 +376,11 @@ void loop() {
           cur_query_key_idx = 0;
           last_full_status = millis();
         }
+      } else {
+        mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
+                       rxFramer.GetValueAsString());
       }
+      rxFramer.Reset();
       MaybeSendCurFrame();
     }
     delay(10);
