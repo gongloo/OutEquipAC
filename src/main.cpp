@@ -53,6 +53,10 @@ constexpr size_t kNumQueryKeys = sizeof(kQueryKeys) / sizeof(*kQueryKeys);
 size_t cur_query_key_idx = 0;
 long last_frame_sent = 0;
 long last_full_status = 0;
+long num_frames_tx = 0;
+long num_frames_rx = 0;
+long num_frames_failed = 0;
+long num_spurious_bytes_rx = 0;
 std::queue<ACFramer> txQueue;
 std::optional<ACFramer::Key> expecting_key;
 
@@ -95,6 +99,7 @@ void WriteFrame(ACFramer& framer) {
   expecting_key = framer.GetKey();
   acSerial.write(framer.buffer(), framer.buffer_pos());
   last_frame_sent = millis();
+  ++num_frames_tx;
 }
 
 // Send the current query only if it's been long enough since the last refresh.
@@ -207,6 +212,7 @@ void HandleWebSerialMessage(const String& message) {
 }
 
 void DumpFailedFrame(const ACFramer& framer) {
+  ++num_frames_failed;
   mSerial.print("(Failed frame: 0x");
   for (int i = 0; i < framer.buffer_pos(); i++) {
     mSerial.printf(" %02x", framer.buffer()[i]);
@@ -215,6 +221,7 @@ void DumpFailedFrame(const ACFramer& framer) {
 }
 
 void DumpHexAndAscii(const uint8_t c) {
+  ++num_spurious_bytes_rx;
   mSerial.printf("0x%02x", c);
   switch (c) {
     case '\r':
@@ -334,6 +341,7 @@ void loop() {
       mSerial.println();
       rxFramer.Reset();
     } else if (rxFramer.HasFullFrame()) {
+      ++num_frames_rx;
       const auto key = rxFramer.GetKey();
       const auto value = rxFramer.GetValue();
       const auto unknown = rxFramer.GetUnknown();
@@ -440,6 +448,12 @@ void loop() {
     sensor.addField("voltage", cur_voltage);
     sensor.addField("amperage", cur_amperage);
     sensor.addField("light", ACFramer::OnOffValueToString(cur_light));
+
+    sensor.addField("uptime_ms", millis());
+    sensor.addField("frames_tx", num_frames_tx);
+    sensor.addField("frames_rx", num_frames_rx);
+    sensor.addField("frames_failed", num_frames_failed);
+    sensor.addField("spurious_bytes_rx", num_spurious_bytes_rx);
 
     // Debug output for influxdb write.
     auto idb_line = sensor.toLineProtocol();
