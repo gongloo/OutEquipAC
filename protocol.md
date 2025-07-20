@@ -41,7 +41,7 @@ To set state, issue a packet with the key and value to set. To query for current
 | ----- | ----------------------------------------------------- |
 | 1     | Cooling                                               |
 | 2     | Heating                                               |
-| 3     | Air Supply Mode TODO: Is this fan only?               |
+| 3     | Fan                                                   |
 | 4     | Eco Cooling                                           |
 | 5     | Sleep Cooling                                         |
 | 6     | Turbo Cooling                                         |
