@@ -4,9 +4,11 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
+#include <InfluxDbClient.h>
 #include <LittleFS.h>
 #include <WebSerial.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
 
 #include <queue>
 
@@ -51,6 +53,11 @@ size_t cur_query_key_idx = 0;
 long last_frame_sent = 0;
 long last_full_status = 0;
 std::queue<ACFramer> txQueue;
+
+// InfluxDB data point
+Point sensor("outequip-ac");
+long last_influxdb_push = 0;
+WiFiUDP Udp;
 
 // Latest status from board.
 ACFramer::OnOffValue cur_power_state = ACFramer::OnOffValue::Query;
@@ -279,6 +286,10 @@ void setup() {
     request->send(404, "text/plain", "404: Not found");
   });
   server.begin();
+
+  // Influx sensor.
+  sensor.addTag("host", HOSTNAME);
+  last_influxdb_push = millis();  // Don't push right away at first loop.
 }
 
 void loop() {
@@ -384,6 +395,34 @@ void loop() {
       MaybeSendCurFrame();
     }
     delay(10);
+  }
+
+  // Send to Influx every so often.
+  if (millis() - last_influxdb_push > PUSH_SAMPLE_INTERVAL_IN_S * 1000) {
+    sensor.clearFields();
+    sensor.addField("power", ACFramer::OnOffValueToString(cur_power_state));
+    sensor.addField("mode", ACFramer::ModeValueToString(cur_mode));
+    sensor.addField("set_temp", cur_set_temp);
+    sensor.addField("fan_speed", cur_fan_speed);
+    sensor.addField("undervolt", cur_undervolt);
+    sensor.addField("overvolt", cur_overvolt);
+    sensor.addField("intake_temp", cur_intake_temp);
+    sensor.addField("outlet_temp", cur_outlet_temp);
+    sensor.addField("lcd", ACFramer::OnOffValueToString(cur_lcd));
+    sensor.addField("voltage", cur_voltage);
+    sensor.addField("amperage", cur_amperage);
+    sensor.addField("light", ACFramer::OnOffValueToString(cur_light));
+
+    // Debug output for influxdb write.
+    auto idb_line = sensor.toLineProtocol();
+    mSerial.println(idb_line);
+
+    // Write point to influxdb
+    Udp.beginPacket(kInfluxHost, kInfluxPort);
+    Udp.write(reinterpret_cast<const uint8_t*>(idb_line.c_str()),
+              idb_line.length());
+    Udp.endPacket();
+    last_influxdb_push = millis();
   }
 }
 #elif !defined(PIO_UNIT_TESTING)
