@@ -20,7 +20,7 @@
 
 #define AC_BAUD_RATE 115200
 
-constexpr int kDataRefreshRateInMs = 2000;
+constexpr int kDataRefreshRateInMs = 1000;
 
 MultiSerial mSerial;
 AsyncWebServer server(80);
@@ -293,6 +293,11 @@ void setup() {
   // Influx sensor.
   sensor.addTag("host", HOSTNAME);
   last_influxdb_push = millis();  // Don't push right away at first loop.
+
+  // Make sure the unit is ready to send/receive.
+  EnqueueFrame(ACFramer::Key::Active, 0);
+  // Give it a second before sending frames.
+  last_frame_sent = millis();
 }
 
 void loop() {
@@ -377,8 +382,13 @@ void loop() {
           cur_light = static_cast<ACFramer::OnOffValue>(value);
           break;
         case ACFramer::Key::Swing:
-        case ACFramer::Key::Active:
           // Ignore.
+          break;
+        case ACFramer::Key::Active:
+          if (value == 2) {
+            // We're being asked if we are ready. Always respond yes.
+            EnqueueFrame(ACFramer::Key::Active, 1);
+          }
           break;
       }
 
