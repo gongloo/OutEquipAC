@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+#include <numeric>
 #include <optional>
 #include <queue>
 
@@ -197,11 +198,17 @@ void HandleWebSerialMessage(const String& message) {
     const String key = message.substring(4, valueDelimiter);
     const String value = message.substring(valueDelimiter + 1);
     if (!TrySet(key, value)) {
-      mSerial.printf("Invalid key (%s) or value (%s).\n", key, value);
+      mSerial.printf(
+          "Invalid key (%s) or value (%s). Valid keys:%s", key, value,
+          std::accumulate(std::begin(kSetKeys), std::end(kSetKeys), String(),
+                          [](String acc, auto k) {
+                            return acc + "\n\t" + ACFramer::KeyToString(k);
+                          })
+              .c_str());
     }
     return;
   }
-  mSerial.println("Unknown command.");
+  mSerial.println("Unknown command. Valid commands:\n\tset");
 }
 
 void DumpFailedFrame(const ACFramer& framer) {
@@ -388,8 +395,8 @@ void loop() {
       // Handle handshake/activation.
       // Not strictly necessary, but here for correctness.
       if (key == ACFramer::Key::Active && value == 2) {
-            // We're being asked if we are ready. Always respond yes.
-            EnqueueFrame(ACFramer::Key::Active, 1);
+        // We're being asked if we are ready. Always respond yes.
+        EnqueueFrame(ACFramer::Key::Active, 1);
       }
 
       // Check if we got a response to our current outstanding query.
