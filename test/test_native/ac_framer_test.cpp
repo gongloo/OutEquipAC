@@ -17,7 +17,6 @@ TEST_F(ACFramerTest, EmptyFrame) {
   EXPECT_STREQ("invalid", framer_.GetKeyAsString());
   EXPECT_EQ(0, framer_.GetValue());
   EXPECT_STREQ("invalid", framer_.GetValueAsString());
-  EXPECT_EQ(0, framer_.GetUnknown());
 }
 
 TEST_F(ACFramerTest, NewPowerOnAndReset) {
@@ -27,14 +26,12 @@ TEST_F(ACFramerTest, NewPowerOnAndReset) {
   EXPECT_EQ(ACFramer::Key::Power, framer_.GetKey());
   EXPECT_EQ(static_cast<uint16_t>(ACFramer::OnOffValue::On),
             framer_.GetValue());
-  EXPECT_EQ(1, framer_.GetUnknown());
 
   framer_.Reset();
   EXPECT_EQ(0, framer_.buffer_pos());
   EXPECT_FALSE(framer_.HasFullFrame());
   EXPECT_EQ(static_cast<ACFramer::Key>(0), framer_.GetKey());
   EXPECT_EQ(0, framer_.GetValue());
-  EXPECT_EQ(0, framer_.GetUnknown());
 }
 
 TEST_F(ACFramerTest, FramePowerOn) {
@@ -50,7 +47,6 @@ TEST_F(ACFramerTest, FramePowerOn) {
   EXPECT_EQ(static_cast<uint16_t>(ACFramer::OnOffValue::On),
             framer_.GetValue());
   EXPECT_STREQ("on", framer_.GetValueAsString());
-  EXPECT_EQ(1, framer_.GetUnknown());
 }
 
 TEST_F(ACFramerTest, FrameHighVoltage) {
@@ -65,7 +61,6 @@ TEST_F(ACFramerTest, FrameHighVoltage) {
   EXPECT_STREQ("voltage", framer_.GetKeyAsString());
   EXPECT_EQ(65535, framer_.GetValue());
   EXPECT_STREQ("6553.5", framer_.GetValueAsString());
-  EXPECT_EQ(1, framer_.GetUnknown());
 }
 
 TEST_F(ACFramerTest, FrameBadKey) {
