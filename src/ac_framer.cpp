@@ -93,7 +93,7 @@ const char* ACFramer::GetValueAsString() {
 uint8_t ACFramer::GetUnknown() const { return buffer_[FrameBytePos::Unknown]; }
 
 // cppcheck-suppress unusedFunction
-bool ACFramer::NewFrame(Key key, uint16_t value) {
+bool ACFramer::NewFrame(Key key, uint16_t value, bool allow_invalid) {
   Reset();
 
   // Preamble.
@@ -134,7 +134,7 @@ bool ACFramer::NewFrame(Key key, uint16_t value) {
   memcpy(buffer_ + buffer_pos_, kPostamble, sizeof(kPostamble));
   buffer_pos_ += sizeof(kPostamble);
 
-  return ValidateFrame();
+  return allow_invalid ? true : ValidateFrame();
 }
 
 uint8_t ACFramer::GetLength() const {

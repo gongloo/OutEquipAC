@@ -133,10 +133,11 @@ class ACFramer {
   /**
    * @brief Create a new frame in this framer's buffer.
    *
+   * @param allow_invalid DEBUG USE ONLY skip validation.
    * @return true if successful.
    * @return false if frame key/value are not valid.
    */
-  bool NewFrame(Key key, uint16_t value);
+  bool NewFrame(Key key, uint16_t value, bool allow_invalid=false);
 
   /**
    * @brief Frames the incoming data.

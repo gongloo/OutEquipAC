@@ -116,13 +116,18 @@ void MaybeSendCurFrame() {
   WriteFrame(txFramer);
 }
 
-bool EnqueueFrame(ACFramer::Key key, uint16_t value) {
+bool EnqueueFrame(ACFramer::Key key, uint16_t value,
+                  bool allow_invalid = false) {
   ACFramer txFramer;
-  if (!txFramer.NewFrame(key, value)) {
+  if (!txFramer.NewFrame(key, value, allow_invalid)) {
     return false;
   }
-  mSerial.printf("Enqueued: %s=%s\n", txFramer.GetKeyAsString(),
-                 txFramer.GetValueAsString());
+  if (allow_invalid) {
+    mSerial.printf("Enqueued: %d=%d\n", static_cast<uint8_t>(key), value);
+  } else {
+    mSerial.printf("Enqueued: %s=%s\n", txFramer.GetKeyAsString(),
+                   txFramer.GetValueAsString());
+  }
   txQueue.push(txFramer);
   return true;
 }
@@ -141,7 +146,6 @@ bool TrySet(const String& key, const String& value) {
 void HandleSet(AsyncWebServerRequest* request) {
   String response;
 
-  mSerial.println("HandleSet()");
   auto params = request->params();
   for (int i = 0; i < params; i++) {
     const auto* p = request->getParam(i);
@@ -188,6 +192,20 @@ void HandleVarDump(AsyncWebServerRequest* request) {
   request->send(response);
 }
 
+void HandleStats(AsyncWebServerRequest* request) {
+  AsyncResponseStream* response =
+      request->beginResponseStream("application/json");
+
+  JsonDocument json_doc;
+  json_doc["millis"] = millis();
+  json_doc["freeHeap"] = ESP.getFreeHeap();
+  json_doc["minFreeHeap"] = ESP.getMinFreeHeap();
+  json_doc["maxAllocHeap"] = ESP.getMaxAllocHeap();
+
+  serializeJsonPretty(json_doc, *response);
+  request->send(response);
+}
+
 void HandleWebSerialMessage(const String& message) {
   if (message.startsWith("set ")) {
     auto valueDelimiter = message.indexOf('=');
@@ -208,12 +226,32 @@ void HandleWebSerialMessage(const String& message) {
     }
     return;
   }
-  mSerial.println("Unknown command. Valid commands:\n\tset");
+
+  if (message.startsWith("debugSet ")) {
+    auto valueDelimiter = message.indexOf('=');
+    if (valueDelimiter == -1) {
+      mSerial.println(
+          "Invalid debugSet command. Syntax: debugSet <key>=<value>");
+      return;
+    }
+    auto key = message.substring(9, valueDelimiter).toInt();
+    auto value = message.substring(valueDelimiter + 1).toInt();
+    EnqueueFrame(static_cast<ACFramer::Key>(key), value, true);
+    return;
+  }
+
+  if (message == "restart") {
+    ESP.restart();
+    return;
+  }
+
+  mSerial.println("Unknown command. Valid commands:\n\tset\n\tdebugSet");
 }
 
 void DumpFailedFrame(const ACFramer& framer) {
   ++num_frames_failed;
-  mSerial.print("(Failed frame: 0x");
+  mSerial.printf("(Failed frame (%d:%d) 0x",
+                 static_cast<uint8_t>(framer.GetKey()), framer.GetValue());
   for (int i = 0; i < framer.buffer_pos(); i++) {
     mSerial.printf(" %02x", framer.buffer()[i]);
   }
@@ -290,6 +328,9 @@ void setup() {
     request->send(200, "text/plain",
                   HOSTNAME " " VERSION " (Built " BUILD_TIMESTAMP ")");
   });
+  server.on("/quitquitquit",
+            [](AsyncWebServerRequest* request) { ESP.restart(); });
+  server.on("/stats", HandleStats);
   server.serveStatic("/", LittleFS, "/htdocs/")
       .setDefaultFile("thermostat.html");
   server.onNotFound([](AsyncWebServerRequest* request) {
