@@ -6,6 +6,7 @@
 	<link rel="manifest" href="manifest.webmanifest">
 	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 	<style type="text/css">
+		@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
 		:root {
 			--light-fillcolor: steelblue;
 			--dark-fillcolor: hsl(207, 100%, 33%);
@@ -51,6 +52,10 @@
 			flex-direction: column;
 			flex-grow: 1;
 			text-align: center;
+		}
+
+		#fan_block {
+			font-size: 40pt;
 		}
 
 		#set {
@@ -128,8 +133,9 @@
 
 		body {
 			background-color: black;
-			font-family: sans-serif;
-			font-weight: bold;
+			font-family: "Poppins", sans-serif;
+  		font-weight: 600;
+  		font-style: normal;
 			font-size: 48pt;
 			margin: 0;
 		}
@@ -158,7 +164,6 @@
 		#switch div {
 			height: 2em;
 			cursor: pointer;
-			font-weight: bolder;
 			font-size: 50%;
 			display: flex;
 			justify-content: center;
@@ -199,7 +204,7 @@
 	</script>
 </head>
 
-<body class="off">
+<body>
 	<div id="title"><span class="emphasis">OutEqiup</span>AC</div>
 	<div id="contents">
 		<div id="switch">
