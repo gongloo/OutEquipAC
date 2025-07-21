@@ -34,13 +34,10 @@ constexpr ACFramer::Key kQueryKeys[] = {ACFramer::Key::Power,
                                         ACFramer::Key::SetTemperature,
                                         ACFramer::Key::FanSpeed,
                                         ACFramer::Key::UndervoltProtect,
-                                        ACFramer::Key::OvervoltProtect,
                                         ACFramer::Key::IntakeAirTemp,
                                         ACFramer::Key::OutletAirTemp,
                                         ACFramer::Key::LCD,
-                                        ACFramer::Key::Voltage,
-                                        ACFramer::Key::Amperage,
-                                        ACFramer::Key::Light};
+                                        ACFramer::Key::Voltage};
 constexpr ACFramer::Key kSetKeys[] = {ACFramer::Key::Power,
                                       ACFramer::Key::Mode,
                                       ACFramer::Key::SetTemperature,
@@ -76,8 +73,6 @@ uint16_t cur_intake_temp = 0;
 uint16_t cur_outlet_temp = 0;
 ACFramer::OnOffValue cur_lcd = ACFramer::OnOffValue::Query;
 float cur_voltage = std::nan("");
-float cur_amperage = std::nan("");
-ACFramer::OnOffValue cur_light = ACFramer::OnOffValue::Query;
 
 void ConnectWiFi() {
   last_wifi_connect_attempt = millis();
@@ -187,8 +182,6 @@ void HandleVarDump(AsyncWebServerRequest* request) {
       cur_outlet_temp;
   json_doc[ACFramer::KeyToString(ACFramer::Key::LCD)] = cur_lcd;
   json_doc[ACFramer::KeyToString(ACFramer::Key::Voltage)] = cur_voltage;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::Amperage)] = cur_amperage;
-  json_doc[ACFramer::KeyToString(ACFramer::Key::Light)] = cur_light;
 
   serializeJsonPretty(json_doc, *response);
   request->send(response);
@@ -302,6 +295,7 @@ void setup() {
   last_influxdb_push = millis();  // Don't push right away at first loop.
 
   // Make sure the unit is ready to send/receive.
+  // Not strictly necessary, but here for correctness.
   EnqueueFrame(ACFramer::Key::Active, 0);
   // Give it a second before sending frames.
   last_frame_sent = millis();
@@ -384,20 +378,18 @@ void loop() {
           cur_voltage = value / 10.0;
           break;
         case ACFramer::Key::Amperage:
-          cur_amperage = value / 10.0;
-          break;
         case ACFramer::Key::Light:
-          cur_light = static_cast<ACFramer::OnOffValue>(value);
-          break;
         case ACFramer::Key::Swing:
+        case ACFramer::Key::Active:
           // Ignore.
           break;
-        case ACFramer::Key::Active:
-          if (value == 2) {
+      }
+
+      // Handle handshake/activation.
+      // Not strictly necessary, but here for correctness.
+      if (key == ACFramer::Key::Active && value == 2) {
             // We're being asked if we are ready. Always respond yes.
             EnqueueFrame(ACFramer::Key::Active, 1);
-          }
-          break;
       }
 
       // Check if we got a response to our current outstanding query.
@@ -446,8 +438,6 @@ void loop() {
     sensor.addField("outlet_temp", cur_outlet_temp);
     sensor.addField("lcd", ACFramer::OnOffValueToString(cur_lcd));
     sensor.addField("voltage", cur_voltage);
-    sensor.addField("amperage", cur_amperage);
-    sensor.addField("light", ACFramer::OnOffValueToString(cur_light));
 
     sensor.addField("uptime_ms", millis());
     sensor.addField("frames_tx", num_frames_tx);

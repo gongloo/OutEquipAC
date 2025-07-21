@@ -68,10 +68,11 @@ const char* ACFramer::GetValueAsString() {
     case Key::Power:
     case Key::LCD:
     case Key::Swing:
-    case Key::Light:
       return OnOffValueToString(static_cast<OnOffValue>(GetValue()));
     case Key::Mode:
       return ModeValueToString(static_cast<ModeValue>(GetValue()));
+    case Key::Light:
+      return LightValueToString(static_cast<LightValue>(GetValue()));
     case Key::FanSpeed:
     case Key::SetTemperature:
     case Key::OvervoltProtect:

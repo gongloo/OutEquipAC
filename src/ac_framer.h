@@ -32,6 +32,8 @@ class ACFramer {
 
   enum class OnOffValue { Query = 0x00, Off = 0x01, On = 0x02 };
 
+  enum class LightValue { Query = 0x00, On = 0x01, Off = 0x02 };
+
   enum class ModeValue {
     Query = 0x00,
     Cool = 0x01,
@@ -84,6 +86,18 @@ class ACFramer {
       case OnOffValue::On:
         return "on";
       case OnOffValue::Off:
+        return "off";
+    }
+    return "invalid";
+  }
+
+  static constexpr const char* LightValueToString(LightValue v) {
+    switch (v) {
+      case LightValue::Query:
+        return "query";
+      case LightValue::On:
+        return "on";
+      case LightValue::Off:
         return "off";
     }
     return "invalid";
