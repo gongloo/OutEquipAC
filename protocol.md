@@ -6,15 +6,21 @@ To set state, issue a packet with the key and value to set. To query for current
 
 # Packet Format
 
-| Length (B) | Datum     | Value                                         |
-| ---------- | --------- | --------------------------------------------- |
-| 2          | Preamble  | `0x5a5a`                                      |
-| 1          | Length    | `uint8` bytes remaining in this packet        |
-| 1          | Unknown   | `0x01`                                        |
-| 1          | Key       | `uint8`, see [Keys](#keys)                    |
-| `Length-5` | Value     | Key-Dependent                                 |
-| 1          | Checksum  | `uint8` sum of each preceeding byte in packet |
-| 2          | Postamble | `0x0d0a`                                      |
+| Length (B) | Datum       | Value                                         |
+| ---------- | ----------- | --------------------------------------------- |
+| 2          | Preamble    | `0x5a5a`                                      |
+| 1          | Length      | `uint8` bytes remaining in this packet        |
+| 1          | Device Type | `0x01`                                        |
+| 1          | Key         | `uint8`, see [Keys](#keys)                    |
+| `Length-5` | Value       | Key-Dependent                                 |
+| 1          | Checksum    | `uint8` sum of each preceeding byte in packet |
+| 2          | Postamble   | `0x0d0a`                                      |
+
+## Device Type
+
+Device type 0x01 applies to air conditioners.
+
+Other device types appear to be supported, but this lies outside the scope of this project. Source code analysis of [U-Frigo](https://play.google.com/store/apps/details?id=com.kingcontech.ufrigo&hl=en_US), which works atop a very similar wire protocol, revealed other device types including air, water, and dual-mode heaters.
 
 ## Keys
 

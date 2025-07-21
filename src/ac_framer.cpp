@@ -5,7 +5,7 @@
 
 namespace {
 
-enum FrameBytePos { Length = 2, Unknown = 3, Key = 4, Value = 5 };
+enum FrameBytePos { Length = 2, DeviceType = 3, Key = 4, Value = 5 };
 
 constexpr uint8_t kPreamble[] = {0x5a, 0x5a};
 constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
@@ -90,8 +90,6 @@ const char* ACFramer::GetValueAsString() {
   return "invalid";
 }
 
-uint8_t ACFramer::GetUnknown() const { return buffer_[FrameBytePos::Unknown]; }
-
 // cppcheck-suppress unusedFunction
 bool ACFramer::NewFrame(Key key, uint16_t value, bool allow_invalid) {
   Reset();
@@ -104,10 +102,11 @@ bool ACFramer::NewFrame(Key key, uint16_t value, bool allow_invalid) {
   // Length
   assert(buffer_pos_ == FrameBytePos::Length);
   bool long_value = value > UINT8_MAX;
-  buffer_[buffer_pos_++] = sizeof(kPostamble) + 3 /* unknown, key, checksum */ +
+  buffer_[buffer_pos_++] = sizeof(kPostamble) +
+                           3 /* device type, key, checksum */ +
                            (long_value ? 2 : 1);
 
-  // Unknown.
+  // Device Type
   buffer_[buffer_pos_++] = 1;
 
   // Key
@@ -148,7 +147,7 @@ uint8_t ACFramer::GetValueLength() const {
   if (!HasFullFrame()) {
     return 0;
   }
-  return GetLength() - 3 /* unknown, key, checksum */ - sizeof(kPostamble);
+  return GetLength() - 3 /* device type, key, checksum */ - sizeof(kPostamble);
 }
 
 bool ACFramer::HasFullFrame() const {

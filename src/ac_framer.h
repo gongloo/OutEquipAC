@@ -158,7 +158,6 @@ class ACFramer {
    * @return const char* value representation as null-terminated c-string. Only valid for the lifetime of this object.
    */
   const char* GetValueAsString();
-  uint8_t GetUnknown() const;
 
   const uint8_t* buffer() const { return buffer_; }
   uint8_t buffer_pos() const { return buffer_pos_; }

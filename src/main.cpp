@@ -386,12 +386,6 @@ void loop() {
       ++num_frames_rx;
       const auto key = rxFramer.GetKey();
       const auto value = rxFramer.GetValue();
-      const auto unknown = rxFramer.GetUnknown();
-      if (unknown != 0x01) {
-        mSerial.printf("Unexpected Unknown byte: 0x%02x (frame %s=%s).\n",
-                       unknown, rxFramer.GetKeyAsString(),
-                       rxFramer.GetValueAsString());
-      }
 
       // Save state.
       switch (key) {
