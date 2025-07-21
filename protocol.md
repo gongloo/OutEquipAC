@@ -20,7 +20,7 @@ To set state, issue a packet with the key and value to set. To query for current
 
 Device type `0x01` applies to air conditioners.
 
-Other device types appear to be supported, but this lies outside the scope of this project. Source code analysis of [U-Frigo](https://play.google.com/store/apps/details?id=com.kingcontech.ufrigo&hl=en_US), which works atop a very similar wire protocol, revealed other device types including air, water, and dual-mode heaters.
+Other device types appear to be supported, but they lie outside the scope of this project. Source code analysis of [U-Frigo](https://play.google.com/store/apps/details?id=com.kingcontech.ufrigo&hl=en_US), which works atop a very similar wire protocol, revealed other device types including air, water, and dual-mode heaters.
 
 ## Keys
 
