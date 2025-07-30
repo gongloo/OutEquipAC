@@ -4,11 +4,13 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
-#include <InfluxDbClient.h>
+#include <IRremoteESP8266.h>
+#include <IRsend.h>
 #include <LittleFS.h>
 #include <WebSerial.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <ir_Coolix.h>
 
 #include <numeric>
 #include <optional>
@@ -19,6 +21,10 @@
 #include "config.h"
 #include "multiserial.h"
 
+#ifndef DISABLE_INFLUX
+#include <InfluxDbClient.h>
+#endif  // DISABLE_INFLUX
+
 #define AC_BAUD_RATE 115200
 
 constexpr int kDataRefreshRateInMs = 1000;
@@ -27,8 +33,9 @@ MultiSerial mSerial;
 AsyncWebServer server(80);
 long last_wifi_connect_attempt = 0;
 
-HardwareSerial acSerial(2);
+HardwareSerial acSerial(1);
 ACFramer rxFramer;
+IRCoolixAC ir(IR_TX_PIN);
 
 constexpr ACFramer::Key kQueryKeys[] = {ACFramer::Key::Power,
                                         ACFramer::Key::Mode,
@@ -58,10 +65,12 @@ long num_spurious_bytes_rx = 0;
 std::queue<ACFramer> txQueue;
 std::optional<ACFramer::Key> expecting_key;
 
+#ifndef DISABLE_INFLUX
 // InfluxDB data point
 Point sensor("outequip-ac");
 long last_influxdb_push = 0;
 WiFiUDP Udp;
+#endif
 
 // Latest status from board.
 ACFramer::OnOffValue cur_power_state = ACFramer::OnOffValue::Query;
@@ -74,6 +83,12 @@ uint16_t cur_intake_temp = 0;
 uint16_t cur_outlet_temp = 0;
 ACFramer::OnOffValue cur_lcd = ACFramer::OnOffValue::Query;
 float cur_voltage = std::nan("");
+
+// IR blast state.
+uint8_t new_set_temp = 0;         // What we're trying to set temp to.
+uint8_t expecting_fan_speed = 0;  // Used to confirm IR commands.
+int8_t cur_ir_retry = -1;         // Negative if we haven't tried yet.
+constexpr uint8_t kMaxIrRetries = 5;
 
 void ConnectWiFi() {
   last_wifi_connect_attempt = millis();
@@ -102,8 +117,17 @@ void WriteFrame(ACFramer& framer) {
 void MaybeSendCurFrame() {
   // Send a frame from the queue first if possible, and return if so.
   if (!txQueue.empty()) {
-    WriteFrame(txQueue.front());
+    auto& txFramer = txQueue.front();
     txQueue.pop();
+    if (txFramer.GetKey() == ACFramer::Key::SetTemperature &&
+        txFramer.GetValue() != 0) {
+      // Setting temperature doesn't work over serial. Use IR instead.
+      // Wait for the IR blast to have taken effect before sending our next
+      // frame.
+      delay(10);
+      return;
+    }
+    WriteFrame(txFramer);
     return;
   }
 
@@ -137,6 +161,21 @@ bool TrySet(const String& key, const String& value) {
       std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
                    [key](auto k) { return key == ACFramer::KeyToString(k); });
   if (k != std::end(kSetKeys)) {
+    if (*k == ACFramer::Key::SetTemperature) {
+      // We set temperature over IR.
+      // First, change the fan speed to we can detect IR receipt.
+      // When we receive the reply for that, we'll blast IR, verify fan speed,
+      // and retry as necessary.
+      new_set_temp = value.toInt();
+      // Sanitize.
+      if (new_set_temp < 16 || (new_set_temp > 30 && new_set_temp < 63) ||
+          new_set_temp > 86) {
+        new_set_temp = 0;
+        return false;
+      }
+      // Query fan speed, which will kick off our IR blast logic.
+      return EnqueueFrame(ACFramer::Key::FanSpeed, ACFramer::kQueryVal);
+    }
     EnqueueFrame(*k, ACFramer::kQueryVal);
     return EnqueueFrame(*k, value.toInt());
   }
@@ -279,6 +318,11 @@ void setup() {
   delay(2000);  // Wait for monitor to open.
   mSerial.printf("OutEquip AC v%s initializing...\n", VERSION);
 
+  // Set up our IR transmitter.
+  mSerial.printf("Initializing IR transmitter at pin %d...\n", IR_TX_PIN);
+  ir.begin();
+  ir.calibrate();
+
   mSerial.printf("Starting AC serial communication at %d baud...\n",
                  AC_BAUD_RATE);
   acSerial.setRxBufferSize(1024);
@@ -338,9 +382,11 @@ void setup() {
   });
   server.begin();
 
+#ifndef DISABLE_INFLUX
   // Influx sensor.
   sensor.addTag("host", HOSTNAME);
   last_influxdb_push = millis();  // Don't push right away at first loop.
+#endif
 
   // Make sure the unit is ready to send/receive.
   // Not strictly necessary, but here for correctness.
@@ -449,6 +495,82 @@ void loop() {
           } else {
             mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
                            rxFramer.GetValueAsString());
+            // Check if we're trying to IR blast.
+            if (new_set_temp > 0 && key == ACFramer::Key::FanSpeed) {
+              if (expecting_fan_speed == value) {
+                // We got what we expected, no need to keep expecting.
+                mSerial.printf("Confirmed set temp: %d\n", new_set_temp);
+                new_set_temp = 0;
+                expecting_fan_speed = 0;
+                cur_ir_retry = -1;
+                // Query the new temperature.
+                EnqueueFrame(ACFramer::Key::SetTemperature,
+                             ACFramer::kQueryVal);
+              } else {
+                // We haven't yet succeeded with a blast.
+                if (cur_ir_retry < 0) {
+                  // We're about try blasting this new temp for the first time.
+                  cur_ir_retry = 0;
+                  // Save our fan speed so that we know when we've succeeded.
+                  expecting_fan_speed = cur_fan_speed;
+                  // Set up the IR blast to be sent, but don't send it yet.
+                  ir.on();
+                  ir.setTemp(new_set_temp);
+                  switch (cur_mode) {
+                    case ACFramer::ModeValue::Query:
+                    case ACFramer::ModeValue::Cool:
+                    case ACFramer::ModeValue::Eco:
+                    case ACFramer::ModeValue::Sleep:
+                    case ACFramer::ModeValue::Turbo:
+                    case ACFramer::ModeValue::Wet:
+                    case ACFramer::ModeValue::Fan:
+                      ir.setMode(kCoolixCool);
+                      break;
+                    case ACFramer::ModeValue::Heat:
+                      ir.setMode(kCoolixHeat);
+                      break;
+                  }
+                  switch (expecting_fan_speed) {
+                    case 1:
+                      ir.setFan(4);
+                      break;
+                    case 2:
+                      ir.setFan(2);
+                      break;
+                    case 3:
+                      ir.setFan(1);
+                      break;
+                    case 4:
+                      ir.setFan(5);
+                      break;
+                    case 5:
+                    default:
+                      ir.setFan(7);
+                      break;
+                  }
+                  // Change the fan speed, which will kick off an IR blast.
+                  EnqueueFrame(ACFramer::Key::FanSpeed,
+                               cur_fan_speed == 1 ? 2 : (cur_fan_speed - 1));
+                } else if (cur_ir_retry <= kMaxIrRetries) {
+                  // (Re)Try IR blast.
+                  mSerial.printf("Sending IR, retry %d/%d: %s\n", cur_ir_retry,
+                                 kMaxIrRetries, ir.toString().c_str());
+                  ir.send(1);
+                  ++cur_ir_retry;
+                  // Query fan speed to confirm.
+                  EnqueueFrame(ACFramer::Key::FanSpeed, 0);
+                } else {
+                  // All of our retries failed.
+                  mSerial.printf("IR blast failed after %d retries.\n",
+                                 kMaxIrRetries);
+                  // Set the fan speed back to what it was.
+                  EnqueueFrame(ACFramer::Key::FanSpeed, expecting_fan_speed);
+                  new_set_temp = 0;
+                  expecting_fan_speed = 0;
+                  cur_ir_retry = -1;
+                }
+              }
+            }
           }
         } else {
           mSerial.printf("Unexpected response to %s: %s=%s\n",
@@ -467,6 +589,7 @@ void loop() {
     delay(10);
   }
 
+#ifndef DISABLE_INFLUX
   // Send to Influx every so often.
   if (millis() - last_influxdb_push > PUSH_SAMPLE_INTERVAL_IN_S * 1000) {
     sensor.clearFields();
@@ -498,6 +621,7 @@ void loop() {
     Udp.endPacket();
     last_influxdb_push = millis();
   }
+#endif  // DISABLE_INFLUX
 }
 #elif !defined(PIO_UNIT_TESTING)
 int main(int arc, char** argv) {

@@ -273,7 +273,7 @@
 			postSet(params);
 		}
 		function adjust(amount) {
-			var new_temp_in_c = Math.round(FtoC(Number(document.getElementById("set_temp").innerHTML)) + amount);
+			var new_temp_in_c = Math.round(Number(document.getElementById("set_temp").innerHTML) + amount);
 			var params = new URLSearchParams([['setTemp', new_temp_in_c]]);
 			postSet(params);
 		}

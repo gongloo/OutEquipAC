@@ -7,6 +7,7 @@
 // Hardware pins.
 #define AC_TX_PIN 16
 #define AC_RX_PIN 18
+#define IR_TX_PIN 0
 
 // InfluxDB stats reporting.
 const IPAddress kInfluxHost(192,168,8,1);  // Influx DB Host
