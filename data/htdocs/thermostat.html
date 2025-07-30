@@ -241,9 +241,6 @@
 			}
 			return Math.round(c * 9 / 5 + 32);
 		}
-		function FtoC(f) {
-			return ((f - 32) * 5 / 9);
-		}
 		function gotMode(mode) {
 			document.getElementById("switch").setAttribute("class", mode == "off" ? "off" : "");
 			document.getElementById("off").setAttribute("class", mode == "off" ? "selected" : "");
@@ -296,7 +293,7 @@
 			if (this.readyState == 4 && this.status == 200) {
 				var dump = JSON.parse(this.responseText);
 				if (document.getElementById("set_temp") != document.activeElement) {
-					document.getElementById("set_temp").innerHTML = RoundedCtoF(dump.setTemp);
+					document.getElementById("set_temp").innerHTML = dump.setTempF;
 				}
 				document.getElementById("cur_temp").innerHTML = RoundedCtoF(dump.intakeTemp);
 				if (dump.power != "on") {

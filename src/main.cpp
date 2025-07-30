@@ -76,6 +76,7 @@ WiFiUDP Udp;
 ACFramer::OnOffValue cur_power_state = ACFramer::OnOffValue::Query;
 ACFramer::ModeValue cur_mode = ACFramer::ModeValue::Query;
 uint8_t cur_set_temp = 0;
+uint8_t cur_set_temp_f = 0;
 uint8_t cur_fan_speed = 0;
 float cur_undervolt = std::nan("");
 uint16_t cur_overvolt = 0;
@@ -215,6 +216,7 @@ void HandleVarDump(AsyncWebServerRequest* request) {
   json_doc[ACFramer::KeyToString(ACFramer::Key::Power)] = cur_power_state;
   json_doc[ACFramer::KeyToString(ACFramer::Key::Mode)] = cur_mode;
   json_doc[ACFramer::KeyToString(ACFramer::Key::SetTemperature)] = cur_set_temp;
+  json_doc["setTempF"] = (cur_set_temp_f);
   json_doc[ACFramer::KeyToString(ACFramer::Key::FanSpeed)] = cur_fan_speed;
   json_doc[ACFramer::KeyToString(ACFramer::Key::UndervoltProtect)] =
       cur_undervolt;
@@ -441,9 +443,20 @@ void loop() {
         case ACFramer::Key::Mode:
           cur_mode = static_cast<ACFramer::ModeValue>(value);
           break;
-        case ACFramer::Key::SetTemperature:
+        case ACFramer::Key::SetTemperature: {
+          const uint8_t expected_set_temp =
+              static_cast<uint16_t>(cur_set_temp_f - 32) * 5 / 9;
+          if (expected_set_temp != value) {
+            uint8_t new_set_temp_f = ceil(value * 1.8 + 32);
+            mSerial.printf(
+                "New set temp: Current F (%d) doesn't match C (got %d, "
+                "expected %d). Updating F (%d).\n",
+                cur_set_temp_f, value, expected_set_temp, new_set_temp_f);
+            cur_set_temp_f = new_set_temp_f;
+          }
           cur_set_temp = value;
           break;
+        }
         case ACFramer::Key::FanSpeed:
           cur_fan_speed = value;
           break;
@@ -500,6 +513,9 @@ void loop() {
               if (expecting_fan_speed == value) {
                 // We got what we expected, no need to keep expecting.
                 mSerial.printf("Confirmed set temp: %d\n", new_set_temp);
+                if (new_set_temp > 30) {
+                  cur_set_temp_f = new_set_temp;
+                }
                 new_set_temp = 0;
                 expecting_fan_speed = 0;
                 cur_ir_retry = -1;
@@ -596,6 +612,7 @@ void loop() {
     sensor.addField("power", ACFramer::OnOffValueToString(cur_power_state));
     sensor.addField("mode", ACFramer::ModeValueToString(cur_mode));
     sensor.addField("set_temp", cur_set_temp);
+    sensor.addField("set_temp_f", cur_set_temp_f);
     sensor.addField("fan_speed", cur_fan_speed);
     sensor.addField("undervolt", cur_undervolt);
     sensor.addField("overvolt", cur_overvolt);
