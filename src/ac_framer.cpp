@@ -207,6 +207,10 @@ bool ACFramer::ValidateFrame() const {
       }
       break;
     case Key::SetTemperature:
+      if (GetValue() < 16 || GetValue() > 30) {
+        return false;
+      }
+      break;
     case Key::UndervoltProtect:
     case Key::OvervoltProtect:
     case Key::IntakeAirTemp:
