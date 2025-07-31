@@ -21,6 +21,10 @@
 #include "config.h"
 #include "multiserial.h"
 
+#ifndef PUSH_SAMPLE_INTERVAL_IN_S
+#define DISABLE_INFLUX
+#endif
+
 #ifndef DISABLE_INFLUX
 #include <InfluxDbClient.h>
 #endif  // DISABLE_INFLUX
@@ -118,17 +122,8 @@ void WriteFrame(ACFramer& framer) {
 void MaybeSendCurFrame() {
   // Send a frame from the queue first if possible, and return if so.
   if (!txQueue.empty()) {
-    auto& txFramer = txQueue.front();
+    WriteFrame(txQueue.front());
     txQueue.pop();
-    if (txFramer.GetKey() == ACFramer::Key::SetTemperature &&
-        txFramer.GetValue() != 0) {
-      // Setting temperature doesn't work over serial. Use IR instead.
-      // Wait for the IR blast to have taken effect before sending our next
-      // frame.
-      delay(10);
-      return;
-    }
-    WriteFrame(txFramer);
     return;
   }
 

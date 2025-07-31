@@ -208,7 +208,7 @@ bool ACFramer::ValidateFrame() const {
       break;
     case Key::SetTemperature:
       if (GetValue() < 16 || GetValue() > 30) {
-        return false;
+        return GetValue() != kQueryVal;
       }
       break;
     case Key::UndervoltProtect:
