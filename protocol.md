@@ -2,7 +2,20 @@
 
 Baud rate 115200.
 
-To set state, issue a packet with the key and value to set. To query for current state, send a packet with the [key](#keys) being queried, and value being `0`. Wait for a response packet before sending another query or set operation.
+This protocol allows sending and receiving one key/value pair per packet. The client (in this case, an Arudino microcontroller) sends a packet to query or set a value for a key, and the server (in this case, the control board) replies with a packet containing a key/value pair.
+
+After writing a packet, clients must wait for a response packet before sending another packet.
+
+## Querying State
+
+To query current state on a given key, clients can issue a packet with the given key and value being `0`. Clients can then expect in response a packet with the same key, and the currently set value for that given key.
+
+## Setting State
+
+To set state, issue a packet with the key and value to set. Clients can then expect in response a packet with the current state.
+
+> [!NOTE]
+> There appears to be a bug in the control board firmware causing mismatched responses: apparently the control board always sends the current state of the last queried key, rather than the current state of the key being set.
 
 # Packet Format
 
