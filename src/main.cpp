@@ -34,6 +34,10 @@
 
 constexpr int kWiFiReconnectTimeoutInS = 10;
 constexpr int kDataRefreshRateInS = 1;
+constexpr int kStableUptimeInS = 60;
+constexpr int kMaxUnstableBoots = 5;
+
+bool is_stable = false;  // True if we've been up longer than kStableUptimeInS.
 
 MultiSerial mSerial;
 AsyncWebServer server(80);
@@ -283,11 +287,12 @@ void HandleWebSerialMessage(const String& message) {
     return;
   }
 
-  mSerial.println("Unknown command. Valid commands:"
-                  "\n\tset"
-                  "\n\tdebugSet"
-                  "\n\trestart"
-                  "\n\tresetConfig");
+  mSerial.println(
+      "Unknown command. Valid commands:"
+      "\n\tset"
+      "\n\tdebugSet"
+      "\n\trestart"
+      "\n\tresetConfig");
 }
 
 void DumpFailedFrame(const ACFramer& framer) {
@@ -315,11 +320,38 @@ void DumpHexAndAscii(const uint8_t c) {
   }
 }
 
+// Sets the short uptime NVS counter to zero, or increment by one.
+// Returns the new value of the counter.
+uint8_t setShortUptimeCount(bool increment) {
+  static constexpr char kShortUptimeCountKey[] = "shortUptimeCnt";
+  static constexpr char kPrefNamespace[] = "outEquipAC";
+
+  // Namespace and keys are limited to 15 characters.
+  static_assert(sizeof(kShortUptimeCountKey) <= 15 + 1);
+  static_assert(sizeof(kPrefNamespace) <= 15 + 1);
+
+  Preferences preferences;
+  preferences.begin(kPrefNamespace, false /* RW mode */);
+  const uint8_t old_count = preferences.getUChar(kShortUptimeCountKey, 0);
+  const uint8_t new_count = increment ? old_count + 1 : 0;
+  preferences.putUChar(kShortUptimeCountKey, new_count);
+  preferences.end();
+  return new_count;
+}
+
 // cppcheck-suppress unusedFunction
 void setup() {
   Serial.begin(115200);
   delay(2000);  // Wait for monitor to open.
   mSerial.printf("OutEquip AC v%s initializing...\n", VERSION);
+
+  // Handle short uptimes.
+  const auto short_uptime_count = setShortUptimeCount(true);
+  mSerial.printf("Recent reboot count: %d\n", short_uptime_count);
+  if (short_uptime_count % kMaxUnstableBoots == 0) {
+    mSerial.println("Too many reboots in a row. Resetting configuration.");
+    netWizard.reset();
+  }
 
   // Set up our IR transmitter.
   mSerial.printf("Initializing IR transmitter at pin %d...\n", IR_TX_PIN);
@@ -385,13 +417,20 @@ void setup() {
 }
 
 void loop() {
+  // Check if we've been up long enough to call ourselves stable.
+  if (!is_stable && millis() > kStableUptimeInS * 1000) {
+    mSerial.printf("Uptime has exceeded %ds. Resetting reboot count.",
+                   kStableUptimeInS);
+    is_stable = true;
+    setShortUptimeCount(false);
+  }
+
   // Handle WiFi.
   netWizard.loop();
   // Check if we're connected (or recently attempted reconnecting to) WiFi.
   if (WiFi.status() != WL_CONNECTED &&
       millis() - last_wifi_connect_attempt > kWiFiReconnectTimeoutInS * 1000) {
-    mSerial.println(
-        "WiFi appears disconnected. Attempting to reconnect.");
+    mSerial.println("WiFi appears disconnected. Attempting to reconnect.");
     ConnectWiFi();
   }
 
