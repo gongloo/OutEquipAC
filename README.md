@@ -14,8 +14,9 @@ This software allows remote control of OutEquipPro AC units like the Summit2 usi
 ## Software Installation
 
 > [!CAUTION]
-> Do this step _before_ hardware installation.
-> This avoids connecting your computer's USB port to a microcontroller being powered externally, as would be the case when powered via the 5V and Ground pins on the control board. Doing so is likely to cause irreversible damage to your computer, microcontroller, and control board.
+> **Do this step _before_ hardware installation.**
+>
+> This avoids frying your devices by connecting your computer's USB port to a microcontroller being powered externally, as would be the case when powered via the 5V and Ground pins on the control board.
 
 1. Clone this repo. Open in VS Code with pioarduino.
 1. Copy [`src/config.example.h`](blob/main/src/config.example.h) to `src/config.h` and customize as necessary.
@@ -98,4 +99,4 @@ A read-write debug interface is made available via [WebSerial](https://github.co
 A read-only serial log is available via the standard serial interface on the microcontroler.
 
 > [!CAUTION]
-> Never connect a USB interface to a microcontroller when powered externally, as would be the case when powered via the 5V and Ground pins on the control board. Doing so is likely to cause irreversible damage to your computer, microcontroller, and control board.
+> To avoid frying your devices, **never connect a USB interface to a microcontroller when powered externally**, as would be the case when powered via the 5V and Ground pins on the control board.
