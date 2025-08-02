@@ -7,6 +7,7 @@
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
 #include <LittleFS.h>
+#include <NetWizard.h>
 #include <WebSerial.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -31,10 +32,12 @@
 
 #define AC_BAUD_RATE 115200
 
-constexpr int kDataRefreshRateInMs = 1000;
+constexpr int kWiFiReconnectTimeoutInS = 10;
+constexpr int kDataRefreshRateInS = 1;
 
 MultiSerial mSerial;
 AsyncWebServer server(80);
+NetWizard netWizard(&server);
 long last_wifi_connect_attempt = 0;
 
 HardwareSerial acSerial(1);
@@ -97,14 +100,7 @@ constexpr uint8_t kMaxIrRetries = 5;
 
 void ConnectWiFi() {
   last_wifi_connect_attempt = millis();
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-}
-
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  mSerial.print("Disconnected from WiFi access point. Reason: ");
-  mSerial.println(info.wifi_sta_disconnected.reason);
-  mSerial.println("Attempting to reconnect.");
-  ConnectWiFi();
+  netWizard.autoConnect("OutEquipAC", "");
 }
 
 void WriteFrame(ACFramer& framer) {
@@ -128,7 +124,7 @@ void MaybeSendCurFrame() {
   }
 
   // Send the next status query frame if it's time to do so.
-  if (millis() - last_full_status < kDataRefreshRateInMs) {
+  if (millis() - last_full_status < kDataRefreshRateInS * 1000) {
     return;
   }
   ACFramer txFramer;
@@ -281,7 +277,17 @@ void HandleWebSerialMessage(const String& message) {
     return;
   }
 
-  mSerial.println("Unknown command. Valid commands:\n\tset\n\tdebugSet");
+  if (message == "resetConfig") {
+    netWizard.reset();
+    ESP.restart();
+    return;
+  }
+
+  mSerial.println("Unknown command. Valid commands:"
+                  "\n\tset"
+                  "\n\tdebugSet"
+                  "\n\trestart"
+                  "\n\tresetConfig");
 }
 
 void DumpFailedFrame(const ACFramer& framer) {
@@ -326,24 +332,10 @@ void setup() {
   acSerial.begin(AC_BAUD_RATE, SERIAL_8N1, AC_RX_PIN, AC_TX_PIN);
 
   // WiFi
-  WiFi.mode(WIFI_STA);
-  WiFi.hostname(HOSTNAME);
-  WiFi.onEvent(WiFiStationDisconnected,
-               WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+#ifdef HOSTNAME
+  netWizard.setHostname(HOSTNAME);
+#endif
   ConnectWiFi();
-  mSerial.printf("Connecting to SSID '%s'...", WIFI_SSID);
-  while (WiFi.status() != WL_CONNECTED &&
-         millis() < WIFI_CONNECT_WAIT_IN_S * 1000) {
-    delay(500);
-    mSerial.print(".");
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    mSerial.print("\nConnected, IP address: ");
-    mSerial.println(WiFi.localIP());
-  } else {
-    mSerial.printf("\nUnable to connect after %ds. Continuing.\n",
-                   WIFI_CONNECT_WAIT_IN_S);
-  }
 
   // mDNS
   if (!MDNS.begin(HOSTNAME)) {
@@ -393,12 +385,13 @@ void setup() {
 }
 
 void loop() {
+  // Handle WiFi.
+  netWizard.loop();
   // Check if we're connected (or recently attempted reconnecting to) WiFi.
   if (WiFi.status() != WL_CONNECTED &&
-      millis() - last_wifi_connect_attempt > WIFI_CONNECT_WAIT_IN_S * 1000) {
+      millis() - last_wifi_connect_attempt > kWiFiReconnectTimeoutInS * 1000) {
     mSerial.println(
-        "WiFi still appears disconnected. Attempting to reconnect.");
-    WiFi.disconnect();
+        "WiFi appears disconnected. Attempting to reconnect.");
     ConnectWiFi();
   }
 
@@ -409,7 +402,7 @@ void loop() {
   WebSerial.loop();
 
   // Send a query if it's been long enough since our last one.
-  if (last_frame_sent < millis() - kDataRefreshRateInMs) {
+  if (last_frame_sent < millis() - kDataRefreshRateInS * 1000) {
     MaybeSendCurFrame();
   }
 
