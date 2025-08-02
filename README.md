@@ -19,8 +19,8 @@ This software allows remote control of OutEquipPro AC units like the Summit2 usi
 > This avoids frying your devices by connecting your computer's USB port to a microcontroller being powered externally, as would be the case when powered via the 5V and Ground pins on the control board.
 
 1. Clone this repo. Open in VS Code with pioarduino.
-1. Copy [`src/config.example.h`](blob/main/src/config.example.h) to `src/config.h` and customize as necessary.
-1. Copy [`platformio_upload.example.ini`](blob/main/platformio_upload.example.ini) to `platformio_upload.ini` and provide admin credentials for use in future OTA updates.
+1. Copy [`src/config.example.h`](src/config.example.h) to `src/config.h` and customize as necessary.
+1. Copy [`platformio_upload.example.ini`](platformio_upload.example.ini) to `platformio_upload.ini` and provide admin credentials for use in future OTA updates.
 1. Build and flash the microcontroller firmware using pioarduino.
 1. Build and flash the microcontroller filesystem using pioarduino.
 
@@ -33,7 +33,7 @@ Attach the IR controller shield to the C3 Mini.
 
 Solder wires onto the control board pads labelled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
 
-Connect the other ends of those wires to the appropriate pins on the microcontroller, as per [`config.h`](blob/main/src/config.example.h). By default, that's:
+Connect the other ends of those wires to the appropriate pins on the microcontroller, as per [`config.h`](src/config.example.h). By default, that's:
 
 | Control Board | C3 Mini |
 | ------------- | ------- |
@@ -64,7 +64,7 @@ An Arduino microcontroller (Lolin/Wemos C3 Mini recommended) interfaces directly
 
 The control board for this model air conditioner has a wired serial interface. In the case of bluetooth-enabled control boards, this serial interface is populated with a bluetooth module. Otherwise, this interface is unpopulated. With a little bit of solder and some effort, a connection can be made for microcontroller use of this serial interface. Conveniently, the control board exposes 5V and ground pins for powering the microcontroller as well.
 
-From there, the Arduino code manages the A/C control board via [a binary protocol](blob/main/protocol.md). The microcontroller queries the control board for updated state every couple of seconds, and sets that state as needed.
+From there, the Arduino code manages the A/C control board via [a binary protocol](protocol.md). The microcontroller queries the control board for updated state every couple of seconds, and sets that state as needed.
 
 ## IR A/C Interface
 
