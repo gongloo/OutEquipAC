@@ -2,9 +2,9 @@
 #define HOSTNAME "outequip-ac"
 
 // Hardware pins.
-#define AC_TX_PIN 16
-#define AC_RX_PIN 18
-#define IR_TX_PIN 0
+#define AC_TX_PIN 5
+#define AC_RX_PIN 4
+#define IR_TX_PIN 6
 
 // InfluxDB stats reporting.
 /*
