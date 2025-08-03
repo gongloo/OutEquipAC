@@ -70,6 +70,9 @@ From there, the Arduino code manages the A/C control board via [a binary protoco
 
 Unfortunately, due to a bug in how temperature control over serial is handled by the control board, setting temperature must be done over infrared by simulating key presses on the IR remote. In order to confirm that the IR blasting works (and retry on failure), the serial interface is used to query state after IR blasting. Since setting the temperature over IR also sets fan speed, the microcontroller first changes the fan speed, then blasts IR, checking to see if the fan speed has changed back as a result of the IR blast being received. If not, the microcontroller will automatically retry IR blasting up to a limit, and on ultimate failure, reset the fan speed to its original value.
 
+> [!NOTE]
+> Having reported the bug to OutEquipPro, they are working on releasing a fix to their bluetooth app, which uses the same serial interface as this project. The fix is likely to prove useful in this project as well, and might eliminate the need for the IR interface entirely. Developing...
+
 ## WiFi Configuration
 
 WiFi is configured at runtime via [NetWizard](https://github.com/ayushsharma82/NetWizard). On start, if there's no WiFi configuration stored, the microcontroller will broadcast a WiFi hotspot with SSID `OutEquipAC` with a captive portal allowing configuration. To reset configuration, reboot the microcontroller 5 times in a row, waiting between 5 and 50 seconds between reboots.
