@@ -266,12 +266,10 @@ void HandleWebSerialMessage(const String& message) {
   if (message.startsWith("debugSet ")) {
     auto valueDelimiter = message.indexOf('=');
     if (valueDelimiter == -1) {
-      mSerial.println(
-          "Invalid debugSet command. Syntax: debugSet <key>=<value>");
-      return;
+      valueDelimiter = message.length();
     }
     auto key = message.substring(9, valueDelimiter).toInt();
-    auto value = message.substring(valueDelimiter + 1).toInt();
+    auto value = valueDelimiter == message.length() ? 0 : message.substring(valueDelimiter + 1).toInt();
     EnqueueFrame(static_cast<ACFramer::Key>(key), value, true);
     return;
   }
@@ -289,8 +287,8 @@ void HandleWebSerialMessage(const String& message) {
 
   mSerial.println(
       "Unknown command. Valid commands:"
-      "\n\tset"
-      "\n\tdebugSet"
+      "\n\tset <key>=<value>"
+      "\n\tdebugSet <key>[=<value>]"
       "\n\trestart"
       "\n\tresetConfig");
 }
