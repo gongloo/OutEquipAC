@@ -7,11 +7,11 @@
 	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 	<style type="text/css">
 		@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
+
 		:root {
 			--light-fillcolor: steelblue;
 			--dark-fillcolor: hsl(207, 100%, 33%);
 		}
-
 
 		#set,
 		#status,
@@ -46,7 +46,6 @@
 			overflow: hidden;
 		}
 
-		#fan_block,
 		#fan_speed,
 		#set_temps {
 			flex-direction: column;
@@ -54,24 +53,22 @@
 			text-align: center;
 		}
 
-		#fan_block {
-			font-size: 40pt;
-		}
-
 		#set {
 			--set-color: black;
 			--triangle-width: 1em;
 			color: var(--set-color);
+			text-align: center;
+		}
+
+		#set > div {
+			display: flex;
+			flex-direction: column;
+			flex-basis: 50%;
 		}
 
 		#switch.off~#set {
 			opacity: 50%;
 			--set-color: dimgrey;
-		}
-
-		#set,
-		#set a {
-			transition: 0.3s;
 		}
 
 		#up::after,
@@ -101,9 +98,7 @@
 		#set_temp,
 		.button {
 			display: block;
-			width: 100%;
 			height: 100%;
-			margin: 0;
 			border-top: 1px solid var(--divider-color);
 		}
 
@@ -113,7 +108,6 @@
 
 		#set_temp {
 			height: 50%;
-			padding: 0.25em 0em;
 		}
 
 		.button:active {
@@ -128,14 +122,25 @@
 		}
 
 		#fan_speed {
+			font-size: 0.7em;
+		}
+
+		.button {
 			cursor: pointer;
+		}
+
+		.label {
+			display: block;
+			color: silver;
+			font-size: 0.3em;
+			margin-bottom: 0.5em;
 		}
 
 		body {
 			background-color: black;
 			font-family: "Poppins", sans-serif;
-  		font-weight: 600;
-  		font-style: normal;
+			font-weight: 600;
+			font-style: normal;
 			font-size: 48pt;
 			margin: 0;
 		}
@@ -151,7 +156,7 @@
 			font-size: 40pt;
 			width: 100%;
 			text-align: center;
-			padding: 0.5em 0;
+			padding: 0.2em 0;
 			color: black;
 			background: linear-gradient(var(--light-fillcolor), var(--dark-fillcolor));
 		}
@@ -216,14 +221,18 @@
 			<span id="cur_temp" class="temp">?</span>
 		</div>
 		<div id="set">
-			<div id="set_temps">
-				<a id="up" class="button" href="#" onclick="adjust(1)"></a>
-				<span id="set_temp" class="temp" contenteditable="true" inputmode="decimal"
-					onKeypress="if(event.keyCode < 48 || event.keyCode > 57){return false;}"
-					onfocusout="doneEditingTemp()">?</span>
-				<a id="down" class="button" href="#" onclick="adjust(-1)"></a>
+			<div id="set_temps_block">
+				<span class="label">Temp</span>
+				<div id="set_temps">
+					<a id="up" class="button" href="#" onclick="adjust(1)"></a>
+					<span id="set_temp" class="temp" contenteditable="true" inputmode="decimal"
+						onKeypress="if(event.keyCode < 48 || event.keyCode > 57){return false;}"
+						onfocusout="doneEditingTemp()">?</span>
+					<a id="down" class="button" href="#" onclick="adjust(-1)"></a>
+				</div>
 			</div>
 			<div id="fan_block">
+				<span class="label">Fan</span>
 				<div id="fan_speed">
 					<span id="fan5" class="button" onclick="setFan(5)">5</span>
 					<span id="fan4" class="button" onclick="setFan(4)">4</span>
