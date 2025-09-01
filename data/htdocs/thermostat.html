@@ -279,8 +279,8 @@
 			postSet(params);
 		}
 		function adjust(amount) {
-			var new_temp_in_c = Math.round(Number(document.getElementById("set_temp").innerHTML) + amount);
-			var params = new URLSearchParams([['setTemp', new_temp_in_c]]);
+			var new_temp = Math.round(Number(document.getElementById("set_temp").innerHTML) + amount);
+			var params = new URLSearchParams([['setTemp', new_temp]]);
 			postSet(params);
 		}
 		function doneEditingTemp() {
@@ -302,7 +302,7 @@
 			if (this.readyState == 4 && this.status == 200) {
 				var dump = JSON.parse(this.responseText);
 				if (document.getElementById("set_temp") != document.activeElement) {
-					document.getElementById("set_temp").innerHTML = dump.setTempF;
+					document.getElementById("set_temp").innerHTML = dump.setTemp;
 				}
 				document.getElementById("cur_temp").innerHTML = RoundedCtoF(dump.intakeTemp);
 				if (dump.power != "on") {

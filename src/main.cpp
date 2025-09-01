@@ -4,14 +4,11 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
-#include <IRremoteESP8266.h>
-#include <IRsend.h>
 #include <LittleFS.h>
 #include <NetWizard.h>
 #include <WebSerial.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <ir_Coolix.h>
 
 #include <numeric>
 #include <optional>
@@ -46,7 +43,6 @@ long last_wifi_connect_attempt = 0;
 
 HardwareSerial acSerial(1);
 ACFramer rxFramer;
-IRCoolixAC ir(IR_TX_PIN);
 
 constexpr ACFramer::Key kQueryKeys[] = {ACFramer::Key::Power,
                                         ACFramer::Key::Mode,
@@ -87,7 +83,6 @@ WiFiUDP Udp;
 ACFramer::OnOffValue cur_power_state = ACFramer::OnOffValue::Query;
 ACFramer::ModeValue cur_mode = ACFramer::ModeValue::Query;
 uint8_t cur_set_temp = 0;
-uint8_t cur_set_temp_f = 0;
 uint8_t cur_fan_speed = 0;
 float cur_undervolt = std::nan("");
 uint16_t cur_overvolt = 0;
@@ -95,12 +90,6 @@ uint16_t cur_intake_temp = 0;
 uint16_t cur_outlet_temp = 0;
 ACFramer::OnOffValue cur_lcd = ACFramer::OnOffValue::Query;
 float cur_voltage = std::nan("");
-
-// IR blast state.
-uint8_t new_set_temp = 0;         // What we're trying to set temp to.
-uint8_t expecting_fan_speed = 0;  // Used to confirm IR commands.
-int8_t cur_ir_retry = -1;         // Negative if we haven't tried yet.
-constexpr uint8_t kMaxIrRetries = 5;
 
 void ConnectWiFi() {
   last_wifi_connect_attempt = millis();
@@ -157,21 +146,6 @@ bool TrySet(const String& key, const String& value) {
       std::find_if(std::begin(kSetKeys), std::end(kSetKeys),
                    [key](auto k) { return key == ACFramer::KeyToString(k); });
   if (k != std::end(kSetKeys)) {
-    if (*k == ACFramer::Key::SetTemperature) {
-      // We set temperature over IR.
-      // First, change the fan speed to we can detect IR receipt.
-      // When we receive the reply for that, we'll blast IR, verify fan speed,
-      // and retry as necessary.
-      new_set_temp = value.toInt();
-      // Sanitize.
-      if (new_set_temp < 16 || (new_set_temp > 30 && new_set_temp < 63) ||
-          new_set_temp > 86) {
-        new_set_temp = 0;
-        return false;
-      }
-      // Query fan speed, which will kick off our IR blast logic.
-      return EnqueueFrame(ACFramer::Key::FanSpeed, ACFramer::kQueryVal);
-    }
     EnqueueFrame(*k, ACFramer::kQueryVal);
     return EnqueueFrame(*k, value.toInt());
   }
@@ -211,7 +185,6 @@ void HandleVarDump(AsyncWebServerRequest* request) {
   json_doc[ACFramer::KeyToString(ACFramer::Key::Power)] = cur_power_state;
   json_doc[ACFramer::KeyToString(ACFramer::Key::Mode)] = cur_mode;
   json_doc[ACFramer::KeyToString(ACFramer::Key::SetTemperature)] = cur_set_temp;
-  json_doc["setTempF"] = (cur_set_temp_f);
   json_doc[ACFramer::KeyToString(ACFramer::Key::FanSpeed)] = cur_fan_speed;
   json_doc[ACFramer::KeyToString(ACFramer::Key::UndervoltProtect)] =
       cur_undervolt;
@@ -351,11 +324,6 @@ void setup() {
     netWizard.reset();
   }
 
-  // Set up our IR transmitter.
-  mSerial.printf("Initializing IR transmitter at pin %d...\n", IR_TX_PIN);
-  ir.begin();
-  ir.calibrate();
-
   mSerial.printf("Starting AC serial communication at %d baud...\n",
                  AC_BAUD_RATE);
   acSerial.setRxBufferSize(1024);
@@ -469,16 +437,6 @@ void loop() {
           cur_mode = static_cast<ACFramer::ModeValue>(value);
           break;
         case ACFramer::Key::SetTemperature: {
-          const uint8_t expected_set_temp =
-              static_cast<uint16_t>(cur_set_temp_f - 32) * 5 / 9;
-          if (expected_set_temp != value) {
-            uint8_t new_set_temp_f = ceil(value * 1.8 + 32);
-            mSerial.printf(
-                "New set temp: Current F (%d) doesn't match C (got %d, "
-                "expected %d). Updating F (%d).\n",
-                cur_set_temp_f, value, expected_set_temp, new_set_temp_f);
-            cur_set_temp_f = new_set_temp_f;
-          }
           cur_set_temp = value;
           break;
         }
@@ -533,85 +491,6 @@ void loop() {
           } else {
             mSerial.printf("Rx: %s=%s\n", rxFramer.GetKeyAsString(),
                            rxFramer.GetValueAsString());
-            // Check if we're trying to IR blast.
-            if (new_set_temp > 0 && key == ACFramer::Key::FanSpeed) {
-              if (expecting_fan_speed == value) {
-                // We got what we expected, no need to keep expecting.
-                mSerial.printf("Confirmed set temp: %d\n", new_set_temp);
-                if (new_set_temp > 30) {
-                  cur_set_temp_f = new_set_temp;
-                }
-                new_set_temp = 0;
-                expecting_fan_speed = 0;
-                cur_ir_retry = -1;
-                // Query the new temperature.
-                EnqueueFrame(ACFramer::Key::SetTemperature,
-                             ACFramer::kQueryVal);
-              } else {
-                // We haven't yet succeeded with a blast.
-                if (cur_ir_retry < 0) {
-                  // We're about try blasting this new temp for the first time.
-                  cur_ir_retry = 0;
-                  // Save our fan speed so that we know when we've succeeded.
-                  expecting_fan_speed = cur_fan_speed;
-                  // Set up the IR blast to be sent, but don't send it yet.
-                  ir.on();
-                  ir.setTemp(new_set_temp);
-                  switch (cur_mode) {
-                    case ACFramer::ModeValue::Query:
-                    case ACFramer::ModeValue::Cool:
-                    case ACFramer::ModeValue::Eco:
-                    case ACFramer::ModeValue::Sleep:
-                    case ACFramer::ModeValue::Turbo:
-                    case ACFramer::ModeValue::Wet:
-                    case ACFramer::ModeValue::Fan:
-                      ir.setMode(kCoolixCool);
-                      break;
-                    case ACFramer::ModeValue::Heat:
-                      ir.setMode(kCoolixHeat);
-                      break;
-                  }
-                  switch (expecting_fan_speed) {
-                    case 1:
-                      ir.setFan(4);
-                      break;
-                    case 2:
-                      ir.setFan(2);
-                      break;
-                    case 3:
-                      ir.setFan(1);
-                      break;
-                    case 4:
-                      ir.setFan(5);
-                      break;
-                    case 5:
-                    default:
-                      ir.setFan(7);
-                      break;
-                  }
-                  // Change the fan speed, which will kick off an IR blast.
-                  EnqueueFrame(ACFramer::Key::FanSpeed,
-                               cur_fan_speed == 1 ? 2 : (cur_fan_speed - 1));
-                } else if (cur_ir_retry <= kMaxIrRetries) {
-                  // (Re)Try IR blast.
-                  mSerial.printf("Sending IR, retry %d/%d: %s\n", cur_ir_retry,
-                                 kMaxIrRetries, ir.toString().c_str());
-                  ir.send(1);
-                  ++cur_ir_retry;
-                  // Query fan speed to confirm.
-                  EnqueueFrame(ACFramer::Key::FanSpeed, 0);
-                } else {
-                  // All of our retries failed.
-                  mSerial.printf("IR blast failed after %d retries.\n",
-                                 kMaxIrRetries);
-                  // Set the fan speed back to what it was.
-                  EnqueueFrame(ACFramer::Key::FanSpeed, expecting_fan_speed);
-                  new_set_temp = 0;
-                  expecting_fan_speed = 0;
-                  cur_ir_retry = -1;
-                }
-              }
-            }
           }
         } else {
           mSerial.printf("Unexpected response to %s: %s=%s\n",
@@ -637,7 +516,6 @@ void loop() {
     sensor.addField("power", ACFramer::OnOffValueToString(cur_power_state));
     sensor.addField("mode", ACFramer::ModeValueToString(cur_mode));
     sensor.addField("set_temp", cur_set_temp);
-    sensor.addField("set_temp_f", cur_set_temp_f);
     sensor.addField("fan_speed", cur_fan_speed);
     sensor.addField("undervolt", cur_undervolt);
     sensor.addField("overvolt", cur_overvolt);

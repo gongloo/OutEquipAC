@@ -4,8 +4,7 @@ This software allows remote control of OutEquipPro AC units like the Summit2 usi
 
 ## What You'll Need
 
-- [Wemos C3 Mini](https://www.wemos.cc/en/latest/c3/c3_mini.html)
-- [Wemos IR Controller Shield](https://www.wemos.cc/en/latest/d1_mini_shield/ir.html)
+- ESP32-C3 (e.g. [Wemos C3 Mini](https://www.wemos.cc/en/latest/c3/c3_mini.html))
 - Soldering Iron
 - Solder
 - Thin Stranded Wire (e.g. 22awg)
@@ -29,7 +28,7 @@ This software allows remote control of OutEquipPro AC units like the Summit2 usi
 
 ## Hardware Installation
 
-Attach the IR controller shield to the C3 Mini.
+![A long, narrow PCB connected by four wires to a much smaller PCB](control_board.jpg "A/C control board connected to ESP32 C3 Super Mini")
 
 Solder wires onto the control board pads labelled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
 
@@ -39,7 +38,7 @@ Connect the other ends of those wires to the appropriate pins on the microcontro
 | ------------- | ------- |
 | 5V            | VBUS    |
 | GND           | GND     |
-| RX            | 5       |
+| RX            | 3       |
 | TX            | 4       |
 
 Once hooked up, secure the wires and microcontroller with some combination of glue, a zip tie, or double-sided tape.
@@ -65,13 +64,6 @@ An Arduino microcontroller (Lolin/Wemos C3 Mini recommended) interfaces directly
 The control board for this model air conditioner has a wired serial interface. In the case of bluetooth-enabled control boards, this serial interface is populated with a bluetooth module. Otherwise, this interface is unpopulated. With a little bit of solder and some effort, a connection can be made for microcontroller use of this serial interface. Conveniently, the control board exposes 5V and ground pins for powering the microcontroller as well.
 
 From there, the Arduino code manages the A/C control board via [a binary protocol](protocol.md). The microcontroller queries the control board for updated state every couple of seconds, and sets that state as needed.
-
-## IR A/C Interface
-
-Unfortunately, due to a bug in how temperature control over serial is handled by the control board, setting temperature must be done over infrared by simulating key presses on the IR remote. In order to confirm that the IR blasting works (and retry on failure), the serial interface is used to query state after IR blasting. Since setting the temperature over IR also sets fan speed, the microcontroller first changes the fan speed, then blasts IR, checking to see if the fan speed has changed back as a result of the IR blast being received. If not, the microcontroller will automatically retry IR blasting up to a limit, and on ultimate failure, reset the fan speed to its original value.
-
-> [!NOTE]
-> Having reported the bug to OutEquipPro, they are working on releasing a fix to their bluetooth app, which uses the same serial interface as this project. The fix is likely to prove useful in this project as well, and might eliminate the need for the IR interface entirely. Developing...
 
 ## WiFi Configuration
 
