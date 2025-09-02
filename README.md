@@ -38,8 +38,8 @@ Connect the other ends of those wires to the appropriate pins on the microcontro
 | ------------- | ------- |
 | 5V            | VBUS    |
 | GND           | GND     |
-| RX            | 3       |
-| TX            | 4       |
+| RX            | 4       |
+| TX            | 3       |
 
 Once hooked up, secure the wires and microcontroller with some combination of glue, a zip tie, or double-sided tape.
 
