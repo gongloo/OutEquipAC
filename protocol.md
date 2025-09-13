@@ -82,7 +82,7 @@ There is code in the app suggesting that °F values can be used in the range 60-
 When the control board is set to use °F, values are still reported in °C, rounded down to the nearest whole degree.
 
 > [!IMPORTANT]
-> Setting temperature does not work when the unit is running in any mode. Further, the set temperature appears to be overwritten when setting power (`1`) to on (`2`) or when setting mode (`2`).
+> In older versions of board firmware, setting temperature does not work due to a firmware bug. This bug is fixed as of 2025-08.
 
 ## Light Values
 

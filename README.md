@@ -1,4 +1,6 @@
-This software allows remote control of OutEquipPro AC units like the Summit2 using an Arduino microcontroller as a WiFi bridge.
+This software allows remote control of OutEquipPro AC units like the Summit2 using an ESP32 microcontroller as a WiFi bridge.
+
+<p align="center"><img src="screenshot.png" title="OutEquipAC user interface" alt="A thermostat phone app screenshot with mode, temperature, and fan selection as well as current temperature readout" height="50%" width="50%" /></p>
 
 # Installation Instructions
 
@@ -30,7 +32,7 @@ This software allows remote control of OutEquipPro AC units like the Summit2 usi
 
 ![A long, narrow PCB connected by four wires to a much smaller PCB](control_board.jpg "A/C control board connected to ESP32 C3 Super Mini")
 
-Solder wires onto the control board pads labelled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
+Solder headers or wires onto the control board pads labelled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
 
 Connect the other ends of those wires to the appropriate pins on the microcontroller, as per [`config.h`](src/config.example.h). By default, that's:
 
