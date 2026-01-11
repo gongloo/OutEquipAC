@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <stdint.h>
 
 namespace {
 
@@ -73,11 +74,14 @@ const char* ACFramer::GetValueAsString() {
       return ModeValueToString(static_cast<ModeValue>(GetValue()));
     case Key::Light:
       return LightValueToString(static_cast<LightValue>(GetValue()));
+    case Key::IntakeAirTemp:
+    case Key::OutletAirTemp:
+      snprintf(val_str_, sizeof(val_str_), "%d",
+               static_cast<int8_t>(GetValue() & 0xFF));
+      return val_str_;
     case Key::FanSpeed:
     case Key::SetTemperature:
     case Key::OvervoltProtect:
-    case Key::IntakeAirTemp:
-    case Key::OutletAirTemp:
     case Key::Active:
       snprintf(val_str_, sizeof(val_str_), "%d", GetValue());
       return val_str_;

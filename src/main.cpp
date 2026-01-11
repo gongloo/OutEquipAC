@@ -86,8 +86,8 @@ uint8_t cur_set_temp = 0;
 uint8_t cur_fan_speed = 0;
 float cur_undervolt = std::nan("");
 uint16_t cur_overvolt = 0;
-uint16_t cur_intake_temp = 0;
-uint16_t cur_outlet_temp = 0;
+int8_t cur_intake_temp = 0;
+int8_t cur_outlet_temp = 0;
 ACFramer::OnOffValue cur_lcd = ACFramer::OnOffValue::Query;
 float cur_voltage = std::nan("");
 
@@ -450,10 +450,11 @@ void loop() {
           cur_overvolt = value;
           break;
         case ACFramer::Key::IntakeAirTemp:
-          cur_intake_temp = value;
+          // Actually a uint8.
+          cur_intake_temp = static_cast<int8_t>(value & 0xFF);
           break;
         case ACFramer::Key::OutletAirTemp:
-          cur_outlet_temp = value;
+          cur_outlet_temp = static_cast<int8_t>(value & 0xFF);
           break;
         case ACFramer::Key::LCD:
           cur_lcd = static_cast<ACFramer::OnOffValue>(value);

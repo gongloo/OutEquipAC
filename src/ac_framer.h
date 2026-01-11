@@ -151,6 +151,7 @@ class ACFramer {
   bool HasFullFrame() const;
   Key GetKey() const;
   const char* GetKeyAsString() const;
+  // TODO: Change API to return proper type for negative values (e.g. Temp)
   uint16_t GetValue() const;
   /**
    * @brief Get the Value as a human-readable string.

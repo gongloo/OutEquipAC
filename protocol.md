@@ -45,8 +45,8 @@ Other device types appear to be supported, but they lie outside the scope of thi
 | 4   | Fan Speed            | R/W | `uint8`  | 1-5                                               |
 | 5   | Undervolt Protection | R/W | `uint8`  | decivolts                                         |
 | 6   | Overvolt Protection  | R   | `uint8`  | Volts                                             |
-| 7   | Intake Air Temp      | R   | `uint8`  | °C                                                |
-| 8   | Air Outlet Temp      | R   | `uint8`  | °C                                                |
+| 7   | Intake Air Temp      | R   | `int8`   | °C                                                |
+| 8   | Air Outlet Temp      | R   | `int8`   | °C                                                |
 | 10  | LCD                  | R/W | `uint8`  | [On/Off Values](#onoff-values) TODO: Validate     |
 | 16  | Swing                | R/W | `uint8`  | [On/Off Values](#onoff-values)                    |
 | 18  | Voltage              | R   | `uint16` | decivolts                                         |

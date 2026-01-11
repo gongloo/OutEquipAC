@@ -49,6 +49,20 @@ TEST_F(ACFramerTest, FramePowerOn) {
   EXPECT_STREQ("on", framer_.GetValueAsString());
 }
 
+TEST_F(ACFramerTest, FrameSubZeroIntake) {
+  const uint8_t kSubZero[] = {0x5a, 0x5a, 0x06, 0x01, 0x07,
+                              0xff, 0xc1, 0x0d, 0x0a};
+  for (auto c : kSubZero) {
+    EXPECT_TRUE(framer_.FrameData(c));
+  }
+  EXPECT_EQ(sizeof(kSubZero), framer_.buffer_pos());
+  EXPECT_TRUE(framer_.HasFullFrame());
+  EXPECT_EQ(ACFramer::Key::IntakeAirTemp, framer_.GetKey());
+  EXPECT_STREQ("intakeTemp", framer_.GetKeyAsString());
+  EXPECT_EQ(-1, static_cast<int8_t>(framer_.GetValue() & 0xFF));
+  EXPECT_STREQ("-1", framer_.GetValueAsString());
+}
+
 TEST_F(ACFramerTest, FrameHighVoltage) {
   const uint8_t kHighVoltage[] = {0x5a, 0x5a, 0x07, 0x01, 0x12,
                                   0xff, 0xff, 0xcc, 0x0d, 0x0a};
