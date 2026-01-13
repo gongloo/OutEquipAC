@@ -267,14 +267,16 @@
 			gotMode(mode);
 			var params = new URLSearchParams();
 			if (mode == "off") {
+				// Set mode to 'cool' to avoid firmware bug causing heat to run.
+				params.append('mode', 1);
 				params.append('power', 1);
 			} else {
-				params.append('power', 2);
 				if (mode == "cool") {
 					params.append('mode', 1);
 				} else {
 					params.append('mode', 2);
 				}
+				params.append('power', 2);
 			}
 			postSet(params);
 		}
