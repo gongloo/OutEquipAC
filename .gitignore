@@ -3,3 +3,6 @@
 .vscode
 platformio_upload.ini
 src/config.h
+.cache
+.clangd
+compile_commands.json
