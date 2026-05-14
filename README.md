@@ -69,11 +69,19 @@ From there, the Arduino code manages the A/C control board via [a binary protoco
 
 ## WiFi Configuration
 
-WiFi is configured at runtime via [NetWizard](https://github.com/ayushsharma82/NetWizard). On start, if there's no WiFi configuration stored, the microcontroller will broadcast a WiFi hotspot with SSID `OutEquipAC` with a captive portal allowing configuration. To reset configuration, reboot the microcontroller 5 times in a row, waiting between 5 and 50 seconds between reboots.
+WiFi is configured at runtime via [NetWizard](https://github.com/ayushsharma82/NetWizard). On start, if there's no WiFi configuration stored, the microcontroller will broadcast a WiFi hotspot with SSID `OutEquipAC` with a captive portal allowing configuration. To reset configuration, reboot the microcontroller 5 times in a row, waiting between 5 and 50 seconds between reboots. Alternatively, you can navigate to the `/webserial` console and enter the command `resetConfig`.
 
 ## Web App
 
 A web app offers basic A/C controls (`/` on port 80 once WiFi is configured). The web app updates state from the microcontroller every few seconds.
+
+## Home Assistant Integration
+
+This project natively supports Home Assistant via MQTT Auto-Discovery.
+
+When configuring the device via the captive portal, you will be prompted to enter your MQTT broker IP, Port, Username, and Password. Once connected, the OutEquip AC will automatically appear in Home Assistant as a Thermostat (Climate entity) along with several sensors for temperatures, voltage, and diagnostics. No manual YAML configuration is required in Home Assistant.
+
+To disable Home Assistant integration, simply leave the MQTT Broker IP field blank in the configuration portal.
 
 ## API
 
