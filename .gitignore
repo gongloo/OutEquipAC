@@ -5,4 +5,7 @@ platformio_upload.ini
 src/config.h
 .cache
 .clangd
+.esphome
 compile_commands.json
+**/__pycache__/
+*.pyc

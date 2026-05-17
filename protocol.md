@@ -47,7 +47,7 @@ Other device types appear to be supported, but they lie outside the scope of thi
 | 6   | Overvolt Protection  | R   | `uint8`  | Volts                                             |
 | 7   | Intake Air Temp      | R   | `int8`   | °C                                                |
 | 8   | Air Outlet Temp      | R   | `int8`   | °C                                                |
-| 10  | LCD                  | R/W | `uint8`  | [On/Off Values](#onoff-values) TODO: Validate     |
+| 10  | LCD                  | R/W | `uint8`  | [LCD Values](#lcd-values)                         |
 | 16  | Swing                | R/W | `uint8`  | [On/Off Values](#onoff-values)                    |
 | 18  | Voltage              | R   | `uint16` | decivolts                                         |
 | 19  | Amperage             | R   | `uint16` | Always `0`                                        |
@@ -75,6 +75,16 @@ Other device types appear to be supported, but they lie outside the scope of thi
 | ----- | ------ |
 | 1     | Off    |
 | 2     | On     |
+
+## LCD Values
+
+LCD handling in the Summit2 firmware has the following unique behavior:
+
+1. When the unit mode is anything other than Off (heat, cool, fan only, etc.):
+   - A serial-reported value of `1` represents **Off**.
+   - A serial-reported value of `0` represents **On**.
+2. When the unit is Off, the LCD is physically always off, regardless of the serial-reported value (which persists at whatever value it held before the unit turned off).
+3. When the unit is turned back on in any active mode, the LCD automatically turns back on and reports its status as `0` (On).
 
 ## Set Temperature Values
 

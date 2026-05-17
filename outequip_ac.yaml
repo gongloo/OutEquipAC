@@ -1,0 +1,109 @@
+substitutions:
+  name: "outequip-ac"
+  friendly_name: "OutEquip AC"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+esp32:
+  board: nologo_esp32c3_super_mini
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "OutEquip AC Fallback"
+
+captive_portal:
+
+web_server:
+  version: 3
+  sorting_groups:
+    - id: climate_section
+      name: "Climate"
+      sorting_weight: 10
+    - id: switches_section
+      name: "Switches"
+      sorting_weight: 20
+    - id: electrical_section
+      name: "Electrical"
+      sorting_weight: 30
+
+uart:
+  id: uart_bus
+  tx_pin: 4
+  rx_pin: 3
+  baud_rate: 115200
+
+outequip_ac:
+  id: ac_device
+  uart_id: uart_bus
+
+climate:
+  - platform: outequip_ac
+    outequip_ac_id: ac_device
+    name: "Thermostat"
+    web_server:
+      sorting_group_id: climate_section
+
+switch:
+  - platform: outequip_ac
+    outequip_ac_id: ac_device
+    lcd:
+      name: "LCD Backlight"
+      web_server:
+        sorting_group_id: switches_section
+    swing:
+      name: "Swing"
+      internal: true # Summit2 lacks swing feature
+      web_server:
+        sorting_group_id: switches_section
+    light:
+      name: "Light"
+      web_server:
+        sorting_group_id: switches_section
+
+sensor:
+  - platform: outequip_ac
+    outequip_ac_id: ac_device
+    intake_temp:
+      name: "Intake Air Temp"
+      web_server:
+        sorting_group_id: climate_section
+    outlet_temp:
+      name: "Outlet Air Temp"
+      web_server:
+        sorting_group_id: climate_section
+    voltage:
+      name: "Voltage"
+      web_server:
+        sorting_group_id: electrical_section
+    undervolt:
+      name: "Undervolt Protect"
+      web_server:
+        sorting_group_id: electrical_section
+    overvolt:
+      name: "Overvolt Protect"
+      web_server:
+        sorting_group_id: electrical_section
+    amperage:
+      name: "Amperage"
+      internal: true # Summit2 always reports zero
+      web_server:
+        sorting_group_id: electrical_section
+

@@ -5,7 +5,7 @@
 #include <string>
 
 class ACFramer {
- public:
+public:
   // Maximum frame size this framer can handle without a buffer overflow.
   // The frame buffer is fixed-length. We shouldn't need a larger frame than
   // this because we don't handle anything larger than uint16 values.
@@ -45,82 +45,82 @@ class ACFramer {
     Wet = 0x07
   };
 
-  static constexpr const char* KeyToString(Key k) {
+  static constexpr const char *KeyToString(Key k) {
     switch (k) {
-      case Key::Power:
-        return "power";
-      case Key::Mode:
-        return "mode";
-      case Key::SetTemperature:
-        return "setTemp";
-      case Key::FanSpeed:
-        return "fan";
-      case Key::UndervoltProtect:
-        return "undervolt";
-      case Key::OvervoltProtect:
-        return "overvolt";
-      case Key::IntakeAirTemp:
-        return "intakeTemp";
-      case Key::OutletAirTemp:
-        return "outletTemp";
-      case Key::LCD:
-        return "lcd";
-      case Key::Swing:
-        return "swing";
-      case Key::Voltage:
-        return "voltage";
-      case Key::Amperage:
-        return "amperage";
-      case Key::Light:
-        return "light";
-      case Key::Active:
-        return "active";
+    case Key::Power:
+      return "power";
+    case Key::Mode:
+      return "mode";
+    case Key::SetTemperature:
+      return "setTemp";
+    case Key::FanSpeed:
+      return "fan";
+    case Key::UndervoltProtect:
+      return "undervolt";
+    case Key::OvervoltProtect:
+      return "overvolt";
+    case Key::IntakeAirTemp:
+      return "intakeTemp";
+    case Key::OutletAirTemp:
+      return "outletTemp";
+    case Key::LCD:
+      return "lcd";
+    case Key::Swing:
+      return "swing";
+    case Key::Voltage:
+      return "voltage";
+    case Key::Amperage:
+      return "amperage";
+    case Key::Light:
+      return "light";
+    case Key::Active:
+      return "active";
     }
     return "invalid";
   }
 
-  static constexpr const char* OnOffValueToString(OnOffValue v) {
+  static constexpr const char *OnOffValueToString(OnOffValue v) {
     switch (v) {
-      case OnOffValue::Query:
-        return "query";
-      case OnOffValue::On:
-        return "on";
-      case OnOffValue::Off:
-        return "off";
+    case OnOffValue::Query:
+      return "query";
+    case OnOffValue::On:
+      return "on";
+    case OnOffValue::Off:
+      return "off";
     }
     return "invalid";
   }
 
-  static constexpr const char* LightValueToString(LightValue v) {
+  static constexpr const char *LightValueToString(LightValue v) {
     switch (v) {
-      case LightValue::Query:
-        return "query";
-      case LightValue::On:
-        return "on";
-      case LightValue::Off:
-        return "off";
+    case LightValue::Query:
+      return "query";
+    case LightValue::On:
+      return "on";
+    case LightValue::Off:
+      return "off";
     }
     return "invalid";
   }
 
-  static constexpr const char* ModeValueToString(ModeValue v) {
+  static constexpr const char *ModeValueToString(ModeValue v) {
     switch (v) {
-      case ModeValue::Query:
-        return "query";
-      case ModeValue::Cool:
-        return "cool";
-      case ModeValue::Heat:
-        return "heat";
-      case ModeValue::Fan:
-        return "fan";
-      case ModeValue::Eco:
-        return "eco";
-      case ModeValue::Sleep:
-        return "sleep";
-      case ModeValue::Turbo:
-        return "turbo";
-      case ModeValue::Wet:
-        return "wet";
+    case ModeValue::Query:
+      return "query";
+    case ModeValue::Cool:
+      return "cool";
+    case ModeValue::Heat:
+      return "heat";
+    case ModeValue::Fan:
+      return "fan";
+    case ModeValue::Eco:
+      return "eco";
+    case ModeValue::Sleep:
+      return "sleep";
+    case ModeValue::Turbo:
+      return "turbo";
+    case ModeValue::Wet:
+      return "wet";
     }
     return "invalid";
   }
@@ -137,7 +137,7 @@ class ACFramer {
    * @return true if successful.
    * @return false if frame key/value are not valid.
    */
-  bool NewFrame(Key key, uint16_t value, bool allow_invalid=false);
+  bool NewFrame(Key key, uint16_t value, bool allow_invalid = false);
 
   /**
    * @brief Frames the incoming data.
@@ -150,20 +150,21 @@ class ACFramer {
 
   bool HasFullFrame() const;
   Key GetKey() const;
-  const char* GetKeyAsString() const;
+  const char *GetKeyAsString() const;
   // TODO: Change API to return proper type for negative values (e.g. Temp)
   uint16_t GetValue() const;
   /**
    * @brief Get the Value as a human-readable string.
-   * 
-   * @return const char* value representation as null-terminated c-string. Only valid for the lifetime of this object.
+   *
+   * @return const char* value representation as null-terminated c-string. Only
+   * valid for the lifetime of this object.
    */
-  const char* GetValueAsString();
+  const char *GetValueAsString();
 
-  const uint8_t* buffer() const { return buffer_; }
+  const uint8_t *buffer() const { return buffer_; }
   uint8_t buffer_pos() const { return buffer_pos_; }
 
- private:
+private:
   uint8_t GetLength() const;
   uint8_t GetValueLength() const;
   bool ValidateFrame() const;
@@ -175,4 +176,4 @@ class ACFramer {
   char val_str_[7];
 };
 
-#endif  // __AC_FRAMER_H__
+#endif // __AC_FRAMER_H__
