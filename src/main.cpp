@@ -1,7 +1,6 @@
 #ifdef ARDUINO
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <ArduinoHA.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ElegantOTA.h>
@@ -40,24 +39,6 @@ bool is_stable = false;  // True if we've been up longer than kStableUptimeInS.
 MultiSerial mSerial;
 AsyncWebServer server(80);
 NetWizard netWizard(&server);
-
-NetWizardParameter p_ha_broker(&netWizard, NW_INPUT, "MQTT Broker IP", "", "192.168.1.100");
-NetWizardParameter p_ha_port(&netWizard, NW_INPUT, "MQTT Port", "1883", "1883");
-NetWizardParameter p_ha_user(&netWizard, NW_INPUT, "MQTT Username", "", "leave blank if none");
-NetWizardParameter p_ha_pass(&netWizard, NW_INPUT, "MQTT Password", "", "leave blank if none");
-
-WiFiClient wifiClient;
-HADevice device;
-HAMqtt mqtt(wifiClient, device);
-
-HAHVAC ha_hvac("outequip_hvac");
-HASensorNumber ha_intake_temp("intake_temp");
-HASensorNumber ha_outlet_temp("outlet_temp");
-HASensorNumber ha_voltage("voltage", HASensorNumber::PrecisionP1);
-HASensorNumber ha_undervolt("undervolt", HASensorNumber::PrecisionP1);
-
-HASensorNumber ha_frames_failed("frames_failed");
-
 long last_wifi_connect_attempt = 0;
 
 HardwareSerial acSerial(1);
@@ -157,46 +138,6 @@ bool EnqueueFrame(ACFramer::Key key, uint16_t value,
                    txFramer.GetValueAsString());
   }
   txQueue.push(txFramer);
-  return true;
-}
-
-void onTargetTemperatureCommand(HANumeric temperature, HAHVAC* sender) {
-    EnqueueFrame(ACFramer::Key::SetTemperature, static_cast<uint16_t>(temperature.toUInt16()));
-}
-
-void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
-    if (mode == HAHVAC::OffMode) {
-        EnqueueFrame(ACFramer::Key::Power, 1);
-    } else {
-        uint16_t ac_mode = 0;
-        if (mode == HAHVAC::CoolMode) ac_mode = 1;
-        else if (mode == HAHVAC::HeatMode) ac_mode = 2;
-        else if (mode == HAHVAC::FanOnlyMode) ac_mode = 3;
-        else if (mode == HAHVAC::DryMode) ac_mode = 7;
-        
-        if (ac_mode != 0) EnqueueFrame(ACFramer::Key::Mode, ac_mode);
-        
-        EnqueueFrame(ACFramer::Key::Power, 2);
-    }
-}
-
-void onFanModeCommand(HAHVAC::FanMode fanMode, HAHVAC* sender) {
-    uint16_t speed = 3;
-    if (fanMode == HAHVAC::LowFanMode) speed = 1;
-    else if (fanMode == HAHVAC::MediumFanMode) speed = 3;
-    else if (fanMode == HAHVAC::HighFanMode) speed = 5;
-    EnqueueFrame(ACFramer::Key::FanSpeed, speed);
-}
-
-bool SaveNetWizardConfig() {
-  Preferences preferences;
-  preferences.begin("outEquipAC", false);
-  preferences.putString("ha_broker", p_ha_broker.getValueStr());
-  preferences.putString("ha_port", p_ha_port.getValueStr());
-  preferences.putString("ha_user", p_ha_user.getValueStr());
-  preferences.putString("ha_pass", p_ha_pass.getValueStr());
-  preferences.end();
-  mSerial.println("Saved NetWizard config to Preferences.");
   return true;
 }
 
@@ -392,62 +333,13 @@ void setup() {
 #ifdef HOSTNAME
   netWizard.setHostname(HOSTNAME);
 #endif
-  // Load NetWizard HA config
-  Preferences preferences;
-  preferences.begin("outEquipAC", true);
-  String ha_broker = preferences.getString("ha_broker", "");
-  String ha_port = preferences.getString("ha_port", "1883");
-  String ha_user = preferences.getString("ha_user", "");
-  String ha_pass = preferences.getString("ha_pass", "");
-  preferences.end();
-  
-  p_ha_broker.setValue(ha_broker);
-  p_ha_port.setValue(ha_port);
-  p_ha_user.setValue(ha_user);
-  p_ha_pass.setValue(ha_pass);
-  
-  netWizard.onConfig(SaveNetWizardConfig);
-
   ConnectWiFi();
+
   // mDNS
   if (!MDNS.begin(HOSTNAME)) {
     mSerial.println("Error setting up MDNS responder!");
   }
   mSerial.printf("mDNS responder started at %s.local\n", HOSTNAME);
-
-
-  // Home Assistant setup
-  byte mac[6];
-  WiFi.macAddress(mac);
-  device.setUniqueId(mac, sizeof(mac));
-  device.setName("OutEquip AC");
-  device.setSoftwareVersion(VERSION);
-  device.setManufacturer("OutEquip");
-  device.setModel("Summit2");
-  
-  ha_hvac.setName("Thermostat");
-  ha_hvac.setModes(HAHVAC::OffMode | HAHVAC::CoolMode | HAHVAC::HeatMode | HAHVAC::FanOnlyMode | HAHVAC::DryMode);
-  ha_hvac.setFanModes(HAHVAC::LowFanMode | HAHVAC::MediumFanMode | HAHVAC::HighFanMode);
-  ha_hvac.onTargetTemperatureCommand(onTargetTemperatureCommand);
-  ha_hvac.onModeCommand(onModeCommand);
-  ha_hvac.onFanModeCommand(onFanModeCommand);
-
-  ha_intake_temp.setName("Intake Air Temp");
-  ha_intake_temp.setUnitOfMeasurement("°C");
-  ha_outlet_temp.setName("Outlet Air Temp");
-  ha_outlet_temp.setUnitOfMeasurement("°C");
-  ha_voltage.setName("Voltage");
-  ha_voltage.setUnitOfMeasurement("V");
-  ha_voltage.setDeviceClass("voltage");
-  ha_undervolt.setName("Undervolt Protect");
-  ha_undervolt.setUnitOfMeasurement("V");
-  ha_undervolt.setDeviceClass("voltage");
-
-  ha_frames_failed.setName("Frames Failed");
-
-  if (p_ha_broker.getValueStr().length() > 0) {
-      mqtt.begin(p_ha_broker.getValueStr().c_str(), p_ha_port.getValueStr().toInt(), p_ha_user.getValueStr().c_str(), p_ha_pass.getValueStr().c_str());
-  }
 
   // WebSerial
   WebSerial.begin(&server);
@@ -513,11 +405,6 @@ void loop() {
 
   // Handle WebSerial messages.
   WebSerial.loop();
-
-  // Handle MQTT.
-  if (WiFi.status() == WL_CONNECTED && p_ha_broker.getValueStr().length() > 0) {
-      mqtt.loop();
-  }
 
   // Send a query if it's been long enough since our last one.
   if (last_frame_sent < millis() - kDataRefreshRateInS * 1000) {
@@ -589,29 +476,6 @@ void loop() {
         // We're being asked if we are ready. Always respond yes.
         EnqueueFrame(ACFramer::Key::Active, 1);
       }
-
-      if (cur_power_state == ACFramer::OnOffValue::On) {
-          if (cur_mode == ACFramer::ModeValue::Cool) ha_hvac.setMode(HAHVAC::CoolMode);
-          else if (cur_mode == ACFramer::ModeValue::Heat) ha_hvac.setMode(HAHVAC::HeatMode);
-          else if (cur_mode == ACFramer::ModeValue::Fan) ha_hvac.setMode(HAHVAC::FanOnlyMode);
-          else if (cur_mode == ACFramer::ModeValue::Wet) ha_hvac.setMode(HAHVAC::DryMode);
-      } else {
-          ha_hvac.setMode(HAHVAC::OffMode);
-      }
-      
-      ha_hvac.setTargetTemperature(cur_set_temp);
-      ha_hvac.setCurrentTemperature(cur_intake_temp);
-      
-      if (cur_fan_speed <= 1) ha_hvac.setFanMode(HAHVAC::LowFanMode);
-      else if (cur_fan_speed <= 3) ha_hvac.setFanMode(HAHVAC::MediumFanMode);
-      else ha_hvac.setFanMode(HAHVAC::HighFanMode);
-      
-      ha_intake_temp.setValue(cur_intake_temp);
-      ha_outlet_temp.setValue(cur_outlet_temp);
-      ha_voltage.setValue(cur_voltage);
-      ha_undervolt.setValue(cur_undervolt);
-
-      ha_frames_failed.setValue(num_frames_failed);
 
       // Check if we got a response to our current outstanding query.
       if (expecting_key.has_value()) {
