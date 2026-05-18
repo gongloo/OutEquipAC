@@ -62,9 +62,15 @@ def get_mdi_path(icon_name):
 
 
 def generate_html_header():
+    from esphome.core import CORE
+    
     current_dir = os.path.dirname(__file__)
     html_path = os.path.join(current_dir, "thermostat.html")
-    output_header_path = os.path.join(current_dir, "custom_index.h")
+    
+    # Generate directly in the .esphome build workspace's src root!
+    build_dir = os.path.join(CORE.build_path, "src")
+    os.makedirs(build_dir, exist_ok=True)
+    output_header_path = os.path.join(build_dir, "outequip_ac_thermostat_html.h")
     
     if not os.path.exists(html_path):
         return
@@ -99,11 +105,13 @@ constexpr size_t OUTEQUIP_AC_HTML_GZ_SIZE = {len(gzipped_bytes)};
     with open(output_header_path, "w", encoding="utf-8") as f:
         f.write(header_content)
 
-# Automatically generate custom_index.h when ESPHome loads the component
-generate_html_header()
 
 async def to_code(config):
+    # Dynamically generate custom_index.h inside the build directory instead of the source directory!
+    generate_html_header()
+    
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
+
 

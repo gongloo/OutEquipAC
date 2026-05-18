@@ -5,7 +5,7 @@
 #include <cmath>
 
 #ifdef USE_WEBSERVER
-#include "custom_index.h"
+#include "outequip_ac_thermostat_html.h"
 #include "esphome/components/web_server_base/web_server_base.h"
 #endif
 
