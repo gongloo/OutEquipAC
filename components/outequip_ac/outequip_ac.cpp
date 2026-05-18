@@ -302,6 +302,7 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
   if (call.get_mode().has_value()) {
     auto m = *call.get_mode();
     if (m == climate::CLIMATE_MODE_OFF) {
+      EnqueueFrame(ACFramer::Key::Mode, 1);
       EnqueueFrame(ACFramer::Key::Power, 1);
     } else {
       uint16_t ac_mode = 0;
