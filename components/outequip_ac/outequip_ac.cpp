@@ -5,8 +5,8 @@
 #include <cmath>
 
 #ifdef USE_WEBSERVER
-#include "outequip_ac_thermostat_html.h"
 #include "esphome/components/web_server_base/web_server_base.h"
+#include "outequip_ac_thermostat_html.h"
 #endif
 
 namespace esphome {
@@ -242,6 +242,9 @@ void OutEquipAC::loop() {
         if (cur_power_state_ == ACFramer::OnOffValue::On) {
           switch (cur_mode_) {
           case ACFramer::ModeValue::Cool:
+          case ACFramer::ModeValue::Eco:
+          case ACFramer::ModeValue::Sleep:
+          case ACFramer::ModeValue::Turbo:
             new_mode = climate::CLIMATE_MODE_COOL;
             break;
           case ACFramer::ModeValue::Heat:
