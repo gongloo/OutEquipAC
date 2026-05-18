@@ -177,6 +177,38 @@
       position: relative;
     }
 
+    .radial-slider-svg {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      width: 240px;
+      height: 240px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .slider-track {
+      stroke: rgba(255, 255, 255, 0.05);
+    }
+
+    .slider-progress {
+      stroke: var(--accent-color);
+      transition: stroke 0.5s ease;
+      filter: drop-shadow(0 0 4px var(--accent-color));
+    }
+
+    .slider-handle {
+      fill: #ffffff;
+      stroke: var(--accent-color);
+      stroke-width: 3.5;
+      cursor: pointer;
+      pointer-events: auto;
+      filter: drop-shadow(0 0 5px var(--accent-color));
+      transition: stroke 0.5s ease, filter 0.5s ease;
+    }
+
+
+
     .temp-current-badge {
       font-size: 0.8rem;
       font-weight: 500;
@@ -198,7 +230,8 @@
 
     .temp-display .degree-symbol {
       font-size: 1.8rem;
-      margin-top: 0.4rem;
+      margin-top: 0.3rem;
+      margin-left: 0.2rem;
       font-weight: 400;
       color: var(--accent-color);
       transition: color 0.5s ease;
@@ -464,6 +497,12 @@
     <div class="dial-container">
       <div class="dial-outer" id="dial-outer">
         <div class="dial-glow-ring" id="dial-ring"></div>
+        <svg class="radial-slider-svg" id="slider-svg" viewBox="0 0 240 240">
+          <path class="slider-track" id="slider-track" d="" fill="none" stroke-width="10" stroke-linecap="round" />
+          <path class="slider-progress" id="slider-progress" d="" fill="none" stroke-width="10"
+            stroke-linecap="round" />
+          <circle class="slider-handle" id="slider-handle" cx="120" cy="120" r="8" />
+        </svg>
         <div class="dial-inner">
           <span class="temp-current-badge">Target</span>
           <div class="temp-display">
@@ -597,6 +636,93 @@
       fan_only: { theme: 'rgba(16, 185, 129, 0.4)', rgb: '16, 185, 129', glow: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }
     };
 
+    // Dynamic Dial boundaries (Celsius standard default, converted at runtime)
+    let minTemp = useFahrenheit ? 60 : 16;
+    let maxTemp = useFahrenheit ? 86 : 30;
+
+    // Radial slider geometry helper functions
+    function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+      const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+      return {
+        x: centerX + (radius * Math.cos(angleInRadians)),
+        y: centerY + (radius * Math.sin(angleInRadians))
+      };
+    }
+
+    function describeArc(x, y, radius, startAngle, endAngle) {
+      const start = polarToCartesian(x, y, radius, startAngle);
+      const end = polarToCartesian(x, y, radius, endAngle);
+
+      let diff = endAngle - startAngle;
+      if (diff < 0) {
+        diff += 360;
+      }
+      const largeArcFlag = diff > 180 ? 1 : 0;
+      const sweepFlag = 1;
+
+      return [
+        "M", start.x, start.y,
+        "A", radius, radius, 0, largeArcFlag, sweepFlag, end.x, end.y
+      ].join(" ");
+    }
+
+    function updateDialProgress() {
+      let pct = (currentTargetTemp - minTemp) / (maxTemp - minTemp);
+      if (pct < 0) pct = 0;
+      if (pct > 1) pct = 1;
+
+      const trackD = describeArc(120, 120, 110, 225, 135);
+      const trackEl = document.getElementById('slider-track');
+      if (trackEl) trackEl.setAttribute('d', trackD);
+
+      const currentAngle = 225 + pct * 270;
+
+      const progressEl = document.getElementById('slider-progress');
+      if (progressEl) {
+        if (pct === 0) {
+          progressEl.setAttribute('d', '');
+        } else {
+          progressEl.setAttribute('d', describeArc(120, 120, 110, 225, currentAngle));
+        }
+      }
+
+      const handlePos = polarToCartesian(120, 120, 110, currentAngle);
+      const handleEl = document.getElementById('slider-handle');
+      if (handleEl) {
+        handleEl.setAttribute('cx', handlePos.x);
+        handleEl.setAttribute('cy', handlePos.y);
+      }
+    }
+
+    // Dynamic configuration fetch via API
+    async function fetchClimateLimits() {
+      try {
+        const response = await fetch(`${basePath}outequip_ac`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.min_temp !== undefined) {
+            let fetchedMin = parseFloat(data.min_temp);
+            if (useFahrenheit) {
+              minTemp = Math.round(fetchedMin * 9 / 5 + 32);
+            } else {
+              minTemp = fetchedMin;
+            }
+          }
+          if (data.max_temp !== undefined) {
+            let fetchedMax = parseFloat(data.max_temp);
+            if (useFahrenheit) {
+              maxTemp = Math.round(fetchedMax * 9 / 5 + 32);
+            } else {
+              maxTemp = fetchedMax;
+            }
+          }
+          updateDialProgress();
+        }
+      } catch (err) {
+        console.error("Failed to fetch climate limits", err);
+      }
+    }
+
     // Update active Mode UI selection
     function updateModeUI(mode) {
       if (!mode) return;
@@ -618,6 +744,11 @@
       if (dialRingEl) {
         dialRingEl.classList.toggle('pulsing', mode !== 'off');
       }
+
+
+
+      // Force visual update on mode change
+      updateDialProgress();
     }
 
     // Update active Fan Speed UI selection
@@ -638,6 +769,7 @@
         currentTargetTemp = parseFloat(targetTempCelsius);
       }
       targetTempEl.textContent = currentTargetTemp.toFixed(0);
+      updateDialProgress();
     }
 
     // REST API commands
@@ -709,6 +841,91 @@
       });
     });
 
+    // Radial slider mouse/touch drag handlers
+    let isDragging = false;
+
+    function handleDrag(e) {
+      if (!isDragging || activeMode === 'off') return;
+
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      let clientX, clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      const rect = dialOuterEl.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+
+      let angleRad = Math.atan2(dy, dx);
+      let angleDeg = angleRad * 180 / Math.PI + 90;
+
+      if (angleDeg < 0) {
+        angleDeg += 360;
+      }
+
+      let relativeAngle = angleDeg - 225;
+      if (relativeAngle < 0) {
+        relativeAngle += 360;
+      }
+
+      if (relativeAngle > 270) {
+        if (relativeAngle < 315) {
+          relativeAngle = 270;
+        } else {
+          relativeAngle = 0;
+        }
+      }
+
+      let pct = relativeAngle / 270;
+      let temp = minTemp + pct * (maxTemp - minTemp);
+
+      const step = useFahrenheit ? 1 : 0.5;
+      temp = Math.round(temp / step) * step;
+
+      if (temp < minTemp) temp = minTemp;
+      if (temp > maxTemp) temp = maxTemp;
+
+      if (temp !== currentTargetTemp) {
+        currentTargetTemp = temp;
+        targetTempEl.textContent = currentTargetTemp.toFixed(0);
+        updateDialProgress();
+      }
+    }
+
+    function stopDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      document.removeEventListener('mousemove', handleDrag);
+      document.removeEventListener('touchmove', handleDrag);
+      document.removeEventListener('mouseup', stopDrag);
+      document.removeEventListener('touchend', stopDrag);
+
+      setTargetTemp(currentTargetTemp);
+    }
+
+    function startDrag(e) {
+      isDragging = true;
+      handleDrag(e);
+      document.addEventListener('mousemove', handleDrag);
+      document.addEventListener('touchmove', handleDrag, { passive: false });
+      document.addEventListener('mouseup', stopDrag);
+      document.addEventListener('touchend', stopDrag);
+    }
+
+    dialOuterEl.addEventListener('mousedown', startDrag);
+    dialOuterEl.addEventListener('touchstart', startDrag, { passive: false });
+
     // Real-time Event Subscription (SSE)
     function setupSSE() {
       const source = new EventSource(`${basePath}events`);
@@ -722,7 +939,11 @@
             hideError();
 
             // Dynamically discover entity ID and name from the event
-            climateEntityId = data.name_id ? data.name_id.split('/').pop() : data.id.split('-').slice(1).join('-');
+            const newEntityId = data.name_id ? data.name_id.split('/').pop() : data.id.split('-').slice(1).join('-');
+            if (climateEntityId !== newEntityId) {
+              climateEntityId = newEntityId;
+              fetchClimateLimits();
+            }
 
             if (data.target_temperature !== undefined) updateTempUI(data.target_temperature);
             if (data.mode !== undefined) updateModeUI(data.mode);
@@ -762,6 +983,8 @@
 
       showError('Connecting to controller...');
       setupSSE();
+      // Fetch initial traits API limits
+      fetchClimateLimits();
     }
 
     window.onload = start;
