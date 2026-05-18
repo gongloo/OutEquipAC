@@ -555,6 +555,12 @@
     }
     const useFahrenheit = isFahrenheitLocale();
 
+    // Determine base path relative to current location, supporting subpaths
+    const basePath = (() => {
+      const path = window.location.pathname;
+      return path.substring(0, path.lastIndexOf('/') + 1);
+    })();
+
     // Helper function for display temperatures
     function displaySensorTemp(celsius) {
       if (useFahrenheit) {
@@ -635,7 +641,7 @@
     async function sendCommand(params) {
       try {
         const queryParams = new URLSearchParams(params).toString();
-        const response = await fetch(`/climate/${climateEntityId}/set?${queryParams}`, {
+        const response = await fetch(`${basePath}climate/${climateEntityId}/set?${queryParams}`, {
           method: 'POST'
         });
         if (!response.ok) {
@@ -702,7 +708,7 @@
 
     // Real-time Event Subscription (SSE)
     function setupSSE() {
-      const source = new EventSource('/events');
+      const source = new EventSource(`${basePath}events`);
 
       const handleStateEvent = function (event) {
         try {
