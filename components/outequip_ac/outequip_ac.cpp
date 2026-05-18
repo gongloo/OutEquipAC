@@ -4,8 +4,33 @@
 #include "esphome/core/preferences.h"
 #include <cmath>
 
+#ifdef USE_WEBSERVER
+#include "custom_index.h"
+#include "esphome/components/web_server_base/web_server_base.h"
+#endif
+
 namespace esphome {
 namespace outequip_ac {
+
+#ifdef USE_WEBSERVER
+class OutEquipCustomPageHandler : public AsyncWebHandler {
+public:
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+    return request->method() == HTTP_GET &&
+           request->url_to(url_buf) == "/thermostat";
+  }
+
+  void handleRequest(AsyncWebServerRequest *request) override {
+    std::string html(reinterpret_cast<const char *>(OUTEQUIP_AC_HTML_GZ),
+                     OUTEQUIP_AC_HTML_GZ_SIZE);
+    AsyncWebServerResponse *response =
+        request->beginResponse(200, "text/html", html);
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  }
+};
+#endif
 
 void OutEquipACSwitch::write_state(bool state) {
   if (parent_ != nullptr) {
@@ -65,6 +90,13 @@ void OutEquipAC::set_light_state(bool state) {
 void OutEquipAC::setup() {
   EnqueueFrame(ACFramer::Key::Active, 0);
   last_frame_sent = millis();
+
+#ifdef USE_WEBSERVER
+  if (web_server_base::global_web_server_base != nullptr) {
+    web_server_base::global_web_server_base->add_handler(
+        new OutEquipCustomPageHandler());
+  }
+#endif
 }
 
 void OutEquipAC::loop() {
@@ -98,12 +130,14 @@ void OutEquipAC::loop() {
 
       switch (key) {
       case ACFramer::Key::Power: {
+        const auto old_power_state = cur_power_state_;
         cur_power_state_ = static_cast<ACFramer::OnOffValue>(value);
         if (lcd_switch_ != nullptr) {
           if (cur_power_state_ == ACFramer::OnOffValue::Off) {
             lcd_switch_->publish_state(false);
             lcd_switch_->set_has_state(true);
-          } else if (cur_power_state_ == ACFramer::OnOffValue::On) {
+          } else if (old_power_state == ACFramer::OnOffValue::Off &&
+                     cur_power_state_ == ACFramer::OnOffValue::On) {
             lcd_switch_->publish_state(true);
             lcd_switch_->set_has_state(true);
           }
@@ -216,9 +250,6 @@ void OutEquipAC::loop() {
           case ACFramer::ModeValue::Fan:
             new_mode = climate::CLIMATE_MODE_FAN_ONLY;
             break;
-          case ACFramer::ModeValue::Wet:
-            new_mode = climate::CLIMATE_MODE_DRY;
-            break;
           default:
             break;
           }
@@ -257,8 +288,7 @@ climate::ClimateTraits OutEquipAC::traits() {
   traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
   traits.set_supported_modes(
       {climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_COOL,
-       climate::CLIMATE_MODE_HEAT, climate::CLIMATE_MODE_FAN_ONLY,
-       climate::CLIMATE_MODE_DRY});
+       climate::CLIMATE_MODE_HEAT, climate::CLIMATE_MODE_FAN_ONLY});
   traits.set_supported_fan_modes({climate::CLIMATE_FAN_LOW,
                                   climate::CLIMATE_FAN_MEDIUM,
                                   climate::CLIMATE_FAN_HIGH});
@@ -281,8 +311,6 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
         ac_mode = 2;
       else if (m == climate::CLIMATE_MODE_FAN_ONLY)
         ac_mode = 3;
-      else if (m == climate::CLIMATE_MODE_DRY)
-        ac_mode = 7;
 
       if (ac_mode != 0)
         EnqueueFrame(ACFramer::Key::Mode, ac_mode);

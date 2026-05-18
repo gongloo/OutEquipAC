@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OutEquip AC Thermostat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(22, 29, 48, 0.7);
+      --card-border: rgba(255, 255, 255, 0.05);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+
+      /* Iridescent Glowing Blue Theme */
+      --glow-blue: rgba(37, 99, 235, 0.4);
+      --accent-grad: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+      --accent-color: #3b82f6;
+      --accent-color-rgb: 59, 130, 246;
+
+      --color-off: #4b5563;
+      --color-cool: #06b6d4;
+      --color-heat: #f97316;
+      --color-fan: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glow Backdrops */
+    .ambient-glow {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--glow-blue) 0%, rgba(11, 15, 25, 0) 70%);
+      top: 10%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      z-index: -1;
+      filter: blur(40px);
+      transition: background 0.8s ease;
+    }
+
+    header {
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    main {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      z-index: 1;
+    }
+
+    /* Glass Card Base Style */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* 1. Giant Radial Temperature Controller */
+    .dial-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .dial-outer {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(22, 29, 48, 0.3) 0%, rgba(11, 15, 25, 0.8) 100%);
+      border: 2px solid rgba(255, 255, 255, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6),
+        0 0 40px -10px rgba(var(--accent-color-rgb), 0.2);
+      transition: box-shadow 0.8s ease;
+    }
+
+    .dial-glow-ring {
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border-radius: 50%;
+      background: var(--accent-grad);
+      z-index: -1;
+      opacity: 0.15;
+      filter: blur(2px);
+      transition: opacity 0.5s ease, background 0.8s ease;
+    }
+
+    .dial-glow-ring.pulsing {
+      animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.15;
+        filter: blur(2px);
+      }
+
+      50% {
+        transform: scale(1.04);
+        opacity: 0.35;
+        filter: blur(6px);
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 0.15;
+        filter: blur(2px);
+      }
+    }
+
+    .dial-inner {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .temp-current-badge {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .temp-display {
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      display: flex;
+      align-items: flex-start;
+      color: #ffffff;
+      transition: color 0.5s ease;
+    }
+
+    .temp-display .degree-symbol {
+      font-size: 1.8rem;
+      margin-top: 0.4rem;
+      font-weight: 400;
+      color: var(--accent-color);
+      transition: color 0.5s ease;
+    }
+
+    .temp-state-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--accent-color);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: color 0.5s ease;
+    }
+
+    /* Plus/Minus Floating Controls */
+    .temp-buttons {
+      display: flex;
+      gap: 2.5rem;
+      margin-top: -2.5rem;
+      z-index: 10;
+    }
+
+    .btn-adjust {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      font-size: 1.5rem;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-adjust:active {
+      transform: scale(0.9);
+      background: var(--accent-grad);
+      border-color: transparent;
+      box-shadow: 0 0 15px var(--accent-color);
+    }
+
+    .btn-adjust svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    /* 2. Secondary Info Metrics */
+    .metrics-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    /* 3. System Modes Selector */
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      padding: 0.35rem;
+    }
+
+    .mode-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 0.25rem;
+      border-radius: 0.75rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 500;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      gap: 0.35rem;
+    }
+
+    .mode-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      transition: transform 0.3s ease;
+    }
+
+    /* Mode Specific Active Styles */
+    .mode-btn.active[data-mode="off"] {
+      background: #374151;
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .mode-btn.active[data-mode="cool"] {
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--color-cool);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .mode-btn.active[data-mode="heat"] {
+      background: rgba(249, 115, 22, 0.15);
+      color: var(--color-heat);
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
+      border: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+
+
+    .mode-btn.active[data-mode="fan_only"] {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--color-fan);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .mode-btn.active svg {
+      transform: scale(1.25);
+    }
+
+    /* 4. Fan Speeds Selector */
+    .fan-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      padding: 0.35rem;
+    }
+
+    .fan-btn {
+      padding: 0.8rem 0.25rem;
+      border-radius: 0.75rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-transform: capitalize;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .fan-btn.active {
+      background: rgba(var(--accent-color-rgb), 0.15);
+      color: var(--accent-color);
+      box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.1);
+      border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+    }
+
+    /* Connection Status */
+    .connection-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(220, 38, 38, 0.1);
+      border: 0px solid rgba(220, 38, 38, 0.2);
+      border-radius: 0.75rem;
+
+      /* Smooth slide and fade container styles */
+      max-height: 0;
+      opacity: 0;
+      padding: 0 0.5rem;
+      margin-bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease,
+        padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        margin-bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        border-width 0.4s ease;
+    }
+
+    .connection-banner.active {
+      max-height: 50px;
+      opacity: 1;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border-width: 1px;
+      pointer-events: auto;
+    }
+
+    .connection-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.4;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Ambient background glow -->
+  <div class="ambient-glow" id="ambient-glow"></div>
+
+  <header>
+    <h1>OutEquip Climate</h1>
+  </header>
+
+  <main>
+    <!-- Connection Status Banner -->
+    <div class="connection-banner" id="conn-banner">
+      <div class="connection-dot"></div>
+      <span id="conn-text">Disconnected from Device</span>
+    </div>
+
+    <!-- Main Temperature Dial Card -->
+    <div class="dial-container">
+      <div class="dial-outer" id="dial-outer">
+        <div class="dial-glow-ring" id="dial-ring"></div>
+        <div class="dial-inner">
+          <span class="temp-current-badge">Target</span>
+          <div class="temp-display">
+            <span id="target-temp">--</span>
+            <span class="degree-symbol">°</span>
+          </div>
+          <span class="temp-state-text" id="status-state">Loading</span>
+        </div>
+      </div>
+
+      <!-- Temperature Increment/Decrement floating buttons -->
+      <div class="temp-buttons">
+        <button class="btn-adjust" id="temp-down">
+          <svg viewBox="0 0 24 24" data-mdi="chevron-down"></svg>
+        </button>
+        <button class="btn-adjust" id="temp-up">
+          <svg viewBox="0 0 24 24" data-mdi="chevron-up"></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Secondary Metrics -->
+    <div class="metrics-container">
+      <div class="glass-card metric-card">
+        <span class="metric-label">Intake Temp</span>
+        <span class="metric-value" id="intake-temp">--°C</span>
+      </div>
+      <div class="glass-card metric-card">
+        <span class="metric-label">Outlet Temp</span>
+        <span class="metric-value" id="outlet-temp">--°C</span>
+      </div>
+    </div>
+
+    <!-- Thermostat Mode Selector -->
+    <div class="section">
+      <h3 class="section-title">Mode</h3>
+      <div class="glass-card modes-grid">
+        <button class="mode-btn" data-mode="off" title="Off">
+          <svg viewBox="0 0 24 24" data-mdi="power"></svg>
+          Off
+        </button>
+        <button class="mode-btn" data-mode="cool" title="Cool">
+          <svg viewBox="0 0 24 24" data-mdi="snowflake"></svg>
+          Cool
+        </button>
+        <button class="mode-btn" data-mode="heat" title="Heat">
+          <svg viewBox="0 0 24 24" data-mdi="fire"></svg>
+          Heat
+        </button>
+        <button class="mode-btn" data-mode="fan_only" title="Fan">
+          <svg viewBox="0 0 24 24" data-mdi="fan"></svg>
+          Fan
+        </button>
+      </div>
+    </div>
+
+    <!-- Fan Speed Grid Selector -->
+    <div class="section">
+      <h3 class="section-title">Fan Speed</h3>
+      <div class="glass-card fan-selector">
+        <button class="fan-btn" data-fan="low">Low</button>
+        <button class="fan-btn" data-fan="medium">Med</button>
+        <button class="fan-btn" data-fan="high">High</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Configuration & Localization
+    // Default to Celsius, except for countries officially using Fahrenheit:
+    // US (United States), BS (Bahamas), BZ (Belize), KY (Cayman Islands), 
+    // PW (Palau), MH (Marshall Islands), FM (Micronesia), LR (Liberia), MM (Myanmar)
+    function isFahrenheitLocale() {
+      const locales = [];
+      if (navigator.language) locales.push(navigator.language);
+      if (navigator.languages) locales.push(...navigator.languages);
+
+      const fahrenheitCountries = ['US', 'BS', 'BZ', 'KY', 'PW', 'MH', 'FM', 'LR', 'MM'];
+      for (const locale of locales) {
+        if (!locale) continue;
+        const parts = locale.split('-');
+        if (parts.length > 1) {
+          const country = parts[1].toUpperCase();
+          if (fahrenheitCountries.includes(country)) {
+            return true;
+          }
+        } else if (locale.toUpperCase() === 'EN-US') {
+          return true;
+        }
+      }
+      return false;
+    }
+    const useFahrenheit = isFahrenheitLocale();
+
+    // Helper function for display temperatures
+    function displaySensorTemp(celsius) {
+      if (useFahrenheit) {
+        return (celsius * 9 / 5 + 32).toFixed(1) + '°F';
+      }
+      return parseFloat(celsius).toFixed(1) + '°C';
+    }
+
+    // State values
+    let currentTargetTemp = useFahrenheit ? 70 : 21;
+    let climateEntityId = 'thermostat'; // Default name of climate entity
+    let activeMode = 'off';
+    let activeFanMode = 'high';
+
+    // UI Elements
+    const targetTempEl = document.getElementById('target-temp');
+    const statusStateEl = document.getElementById('status-state');
+    const intakeTempEl = document.getElementById('intake-temp');
+    const outletTempEl = document.getElementById('outlet-temp');
+    const connBannerEl = document.getElementById('conn-banner');
+    const connTextEl = document.getElementById('conn-text');
+    const ambientGlowEl = document.getElementById('ambient-glow');
+    const dialOuterEl = document.getElementById('dial-outer');
+    const dialRingEl = document.getElementById('dial-ring');
+
+    // Color definitions
+    const colors = {
+      off: { theme: 'rgba(75, 85, 99, 0.4)', rgb: '75, 85, 99', glow: 'linear-gradient(135deg, #374151 0%, #4b5563 100%)' },
+      cool: { theme: 'rgba(6, 182, 212, 0.4)', rgb: '6, 182, 212', glow: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' },
+      heat: { theme: 'rgba(249, 115, 22, 0.4)', rgb: '249, 115, 22', glow: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)' },
+      fan_only: { theme: 'rgba(16, 185, 129, 0.4)', rgb: '16, 185, 129', glow: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }
+    };
+
+    // Update active Mode UI selection
+    function updateModeUI(mode) {
+      if (!mode) return;
+      mode = mode.toLowerCase();
+      activeMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+      });
+
+      // Apply dynamic colors to the Dial and Backdrop glows
+      const stateDetails = colors[mode] || colors.off;
+      document.documentElement.style.setProperty('--glow-blue', stateDetails.theme);
+      document.documentElement.style.setProperty('--accent-color-rgb', stateDetails.rgb);
+      document.documentElement.style.setProperty('--accent-grad', stateDetails.glow);
+      document.documentElement.style.setProperty('--accent-color', `rgb(${stateDetails.rgb})`);
+
+      statusStateEl.textContent = mode.replace('_', ' ');
+
+      if (dialRingEl) {
+        dialRingEl.classList.toggle('pulsing', mode !== 'off');
+      }
+    }
+
+    // Update active Fan Speed UI selection
+    function updateFanUI(fanMode) {
+      if (!fanMode) return;
+      fanMode = fanMode.toLowerCase();
+      activeFanMode = fanMode;
+      document.querySelectorAll('.fan-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-fan') === fanMode);
+      });
+    }
+
+    // Update main temperature readings
+    function updateTempUI(targetTempCelsius) {
+      if (useFahrenheit) {
+        currentTargetTemp = parseFloat(targetTempCelsius) * 9 / 5 + 32;
+      } else {
+        currentTargetTemp = parseFloat(targetTempCelsius);
+      }
+      targetTempEl.textContent = currentTargetTemp.toFixed(0);
+    }
+
+    // REST API commands
+    async function sendCommand(params) {
+      try {
+        const queryParams = new URLSearchParams(params).toString();
+        const response = await fetch(`/climate/${climateEntityId}/set?${queryParams}`, {
+          method: 'POST'
+        });
+        if (!response.ok) {
+          showError('Command failed');
+        }
+      } catch (err) {
+        showError('Network error');
+      }
+    }
+
+    function showError(msg) {
+      connTextEl.textContent = msg;
+      connBannerEl.classList.add('active');
+    }
+
+    function hideError() {
+      connBannerEl.classList.remove('active');
+    }
+
+    // Set Target Temperature Call
+    function setTargetTemp(temp) {
+      currentTargetTemp = temp;
+      targetTempEl.textContent = currentTargetTemp.toFixed(0);
+
+      let apiTemp = temp;
+      if (useFahrenheit) {
+        apiTemp = (temp - 32) * 5 / 9;
+      }
+      sendCommand({ target_temperature: apiTemp });
+    }
+
+    // Set Mode Call
+    function setMode(mode) {
+      updateModeUI(mode);
+      sendCommand({ mode: mode });
+    }
+
+    // Set Fan Speed Call
+    function setFanSpeed(fanMode) {
+      updateFanUI(fanMode);
+      sendCommand({ fan_mode: fanMode });
+    }
+
+    // Click Bindings
+    document.getElementById('temp-up').addEventListener('click', () => {
+      setTargetTemp(currentTargetTemp + 1);
+    });
+
+    document.getElementById('temp-down').addEventListener('click', () => {
+      setTargetTemp(currentTargetTemp - 1);
+    });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setMode(btn.getAttribute('data-mode'));
+      });
+    });
+
+    document.querySelectorAll('.fan-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setFanSpeed(btn.getAttribute('data-fan'));
+      });
+    });
+
+    // Real-time Event Subscription (SSE)
+    function setupSSE() {
+      const source = new EventSource('/events');
+
+      const handleStateEvent = function (event) {
+        try {
+          const data = JSON.parse(event.data);
+
+          // 1. Handle Climate states
+          if (data.id && data.id.startsWith('climate-')) {
+            hideError();
+
+            // Dynamically discover entity ID and name from the event
+            climateEntityId = data.name_id ? data.name_id.split('/').pop() : data.id.split('-').slice(1).join('-');
+
+            if (data.target_temperature !== undefined) updateTempUI(data.target_temperature);
+            if (data.mode !== undefined) updateModeUI(data.mode);
+            if (data.fan_mode !== undefined) updateFanUI(data.fan_mode);
+          }
+
+          // 2. Handle sensor states
+          if (data.id && data.id.includes('intake')) {
+            intakeTempEl.textContent = displaySensorTemp(parseFloat(data.value));
+          }
+          if (data.id && data.id.includes('outlet')) {
+            outletTempEl.textContent = displaySensorTemp(parseFloat(data.value));
+          }
+        } catch (err) {
+          console.error("SSE parse error", err);
+        }
+      };
+
+      source.addEventListener('state', handleStateEvent);
+      source.addEventListener('state_detail_all', handleStateEvent);
+
+      source.onopen = function () {
+        hideError();
+      };
+
+      source.onerror = function () {
+        showError('Reconnecting to live updates...');
+      };
+    }
+
+    // Initialize Page
+    function start() {
+      // Set initial units placeholders dynamically
+      const tempUnitSuffix = useFahrenheit ? '°F' : '°C';
+      intakeTempEl.textContent = '--' + tempUnitSuffix;
+      outletTempEl.textContent = '--' + tempUnitSuffix;
+
+      showError('Connecting to controller...');
+      setupSSE();
+    }
+
+    window.onload = start;
+  </script>
+</body>
+
+</html>
