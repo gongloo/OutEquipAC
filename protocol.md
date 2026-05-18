@@ -88,11 +88,11 @@ LCD handling in the Summit2 firmware has the following unique behavior:
 
 ## Set Temperature Values
 
-Values are related in °C, within the range 17-30 inclusive.
+The board can be set in Fahrenheit or in Celcius (using the IR remote).
 
-There is code in the app suggesting that °F values can be used in the range 60-87 inclusive, but emperically this was not found to be the case.
+When set to Celcius, values are related in whole degrees Celsius, within the range 17-30 inclusive.
 
-When the control board is set to use °F, values are still reported in °C, rounded down to the nearest whole degree.
+When set to Fahrenheit, values are related in whole degrees Fahrenheit, within the range 61-86 inclusive.
 
 > [!IMPORTANT]
 > In older versions of board firmware, setting temperature does not work due to a firmware bug. This bug is fixed as of 2025-08.
