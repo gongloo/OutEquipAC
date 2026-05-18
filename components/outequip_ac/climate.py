@@ -1,7 +1,14 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate
-from esphome.const import CONF_ID, CONF_ICON, CONF_VISUAL, CONF_TEMPERATURE_STEP
+from esphome.const import (
+    CONF_ID,
+    CONF_ICON,
+    CONF_VISUAL,
+    CONF_TEMPERATURE_STEP,
+    CONF_MIN_TEMPERATURE,
+    CONF_MAX_TEMPERATURE,
+)
 from . import outequip_ac_ns, OutEquipAC, CONF_OUTEQUIP_AC_ID
 
 DEPENDENCIES = ["outequip_ac"]
@@ -9,6 +16,8 @@ DEPENDENCIES = ["outequip_ac"]
 def default_visual_specs(config):
     from esphome.const import CONF_TARGET_TEMPERATURE, CONF_CURRENT_TEMPERATURE
     visual = config.setdefault(CONF_VISUAL, {})
+    visual.setdefault(CONF_MIN_TEMPERATURE, 16)
+    visual.setdefault(CONF_MAX_TEMPERATURE, 30)
     temp_step = visual.setdefault(CONF_TEMPERATURE_STEP, {})
     if not isinstance(temp_step, dict):
         val = temp_step
