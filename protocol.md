@@ -40,7 +40,7 @@ Other device types appear to be supported, but they lie outside the scope of thi
 | Key | Intent               | R/W | Type     | Value                                             |
 | --- | -------------------- | --- | -------- | ------------------------------------------------- |
 | 1   | Power                | R/W | `uint8`  | [On/Off Values](#onoff-values)                    |
-| 2   | Mode                 | R/W | `uint8`  | [Mode Values](#runmode-values)                    |
+| 2   | Mode                 | R/W | `uint8`  | [Mode Values](#mode-values)                       |
 | 3   | Set Temperature      | R   | `uint8`  | [Set Temperature Values](#set-temperature-values) |
 | 4   | Fan Speed            | R/W | `uint8`  | 1-5                                               |
 | 5   | Undervolt Protection | R/W | `uint8`  | decivolts                                         |
