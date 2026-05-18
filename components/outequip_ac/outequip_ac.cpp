@@ -177,8 +177,7 @@ void OutEquipAC::loop() {
       case ACFramer::Key::UndervoltProtect:
         publish_sensor(undervolt_sensor_, value / 10.0f);
         break;
-      case ACFramer::Key::OvervoltProtect: {
-      }
+      case ACFramer::Key::OvervoltProtect:
         publish_sensor(overvolt_sensor_, value);
         break;
       case ACFramer::Key::IntakeAirTemp: {
