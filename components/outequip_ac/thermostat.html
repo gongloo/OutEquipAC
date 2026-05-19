@@ -26,6 +26,12 @@
       --color-cool: #06b6d4;
       --color-heat: #f97316;
       --color-fan: #10b981;
+
+      /* Dial configuration variables */
+      --dial-size: 240px;
+      --dial-border-width: 2px;
+      --dial-inner-size: 200px;
+      --dial-glow-offset: -3px;
     }
 
     * {
@@ -111,11 +117,11 @@
     }
 
     .dial-outer {
-      width: 240px;
-      height: 240px;
+      width: var(--dial-size);
+      height: var(--dial-size);
       border-radius: 50%;
       background: radial-gradient(circle, rgba(22, 29, 48, 0.3) 0%, rgba(11, 15, 25, 0.8) 100%);
-      border: 2px solid rgba(255, 255, 255, 0.03);
+      border: var(--dial-border-width) solid rgba(255, 255, 255, 0.03);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -127,10 +133,10 @@
 
     .dial-glow-ring {
       position: absolute;
-      top: -3px;
-      left: -3px;
-      right: -3px;
-      bottom: -3px;
+      top: var(--dial-glow-offset);
+      left: var(--dial-glow-offset);
+      right: var(--dial-glow-offset);
+      bottom: var(--dial-glow-offset);
       border-radius: 50%;
       background: var(--accent-grad);
       z-index: -1;
@@ -164,8 +170,8 @@
     }
 
     .dial-inner {
-      width: 200px;
-      height: 200px;
+      width: var(--dial-inner-size);
+      height: var(--dial-inner-size);
       border-radius: 50%;
       background: #111827;
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -179,10 +185,10 @@
 
     .radial-slider-svg {
       position: absolute;
-      top: -2px;
-      left: -2px;
-      width: 240px;
-      height: 240px;
+      top: calc(-1 * var(--dial-border-width));
+      left: calc(-1 * var(--dial-border-width));
+      width: var(--dial-size);
+      height: var(--dial-size);
       pointer-events: none;
       z-index: 2;
     }
@@ -636,6 +642,11 @@
       fan_only: { theme: 'rgba(16, 185, 129, 0.4)', rgb: '16, 185, 129', glow: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }
     };
 
+    // Radial slider geometry constants
+    const DIAL_SIZE = 240;
+    const DIAL_CENTER = DIAL_SIZE / 2;
+    const DIAL_RADIUS = 110;
+
     // Dynamic Dial boundaries (Celsius standard default, converted at runtime)
     let minTemp = useFahrenheit ? 60 : 16;
     let maxTemp = useFahrenheit ? 86 : 30;
@@ -671,7 +682,7 @@
       if (pct < 0) pct = 0;
       if (pct > 1) pct = 1;
 
-      const trackD = describeArc(120, 120, 110, 225, 135);
+      const trackD = describeArc(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, 225, 135);
       const trackEl = document.getElementById('slider-track');
       if (trackEl) trackEl.setAttribute('d', trackD);
 
@@ -682,11 +693,11 @@
         if (pct === 0) {
           progressEl.setAttribute('d', '');
         } else {
-          progressEl.setAttribute('d', describeArc(120, 120, 110, 225, currentAngle));
+          progressEl.setAttribute('d', describeArc(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, 225, currentAngle));
         }
       }
 
-      const handlePos = polarToCartesian(120, 120, 110, currentAngle);
+      const handlePos = polarToCartesian(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, currentAngle);
       const handleEl = document.getElementById('slider-handle');
       if (handleEl) {
         handleEl.setAttribute('cx', handlePos.x);
