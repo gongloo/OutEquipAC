@@ -32,6 +32,10 @@
       --dial-border-width: 2px;
       --dial-inner-size: 200px;
       --dial-glow-offset: -3px;
+
+      /* Icon animation variables */
+      --cool-tilt-angle: 20deg;
+      --heat-tilt-angle: 8deg;
     }
 
     * {
@@ -392,6 +396,49 @@
       transform: scale(1.25);
     }
 
+    /* Interactive Icon Animations */
+    .mode-btn.active[data-mode="cool"] svg {
+      --tilt-angle: var(--cool-tilt-angle);
+      animation: mode-tilt 3s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    .mode-btn.active[data-mode="heat"] svg {
+      --tilt-angle: var(--heat-tilt-angle);
+      animation: mode-tilt 2.2s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    #fan-icon.spinning path {
+      animation: fan-spin var(--fan-duration, 1.5s) linear infinite;
+      transform-origin: center;
+      transform-box: view-box;
+    }
+
+    @keyframes mode-tilt {
+      0% {
+        transform: scale(1.25) rotate(calc(-1 * var(--tilt-angle)));
+      }
+
+      50% {
+        transform: scale(1.25) rotate(var(--tilt-angle));
+      }
+
+      100% {
+        transform: scale(1.25) rotate(calc(-1 * var(--tilt-angle)));
+      }
+    }
+
+    @keyframes fan-spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     /* 4. Fan Speeds Selector */
     .fan-selector {
       display: grid;
@@ -559,7 +606,7 @@
           Heat
         </button>
         <button class="mode-btn" data-mode="fan_only" title="Fan">
-          <svg viewBox="0 0 24 24" data-mdi="fan"></svg>
+          <svg id="fan-icon" viewBox="0 0 24 24" data-mdi="fan"></svg>
           Fan
         </button>
       </div>
@@ -760,6 +807,7 @@
 
       // Force visual update on mode change
       updateDialProgress();
+      updateFanAnimation();
     }
 
     // Update active Fan Speed UI selection
@@ -770,6 +818,25 @@
       document.querySelectorAll('.fan-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-fan') === fanMode);
       });
+      updateFanAnimation();
+    }
+
+    function updateFanAnimation() {
+      const fanIcon = document.getElementById('fan-icon');
+      if (!fanIcon) return;
+
+      if (activeMode === 'off') {
+        fanIcon.classList.remove('spinning');
+      } else {
+        fanIcon.classList.add('spinning');
+        let duration = '2s'; // low
+        if (activeFanMode === 'medium') {
+          duration = '1.4s';
+        } else if (activeFanMode === 'high') {
+          duration = '0.8s';
+        }
+        fanIcon.style.setProperty('--fan-duration', duration);
+      }
     }
 
     // Update main temperature readings
