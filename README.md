@@ -10,7 +10,7 @@ This project provides an ESPHome-based custom component to allow remote monitori
 
 It integrates seamlessly with **Home Assistant** via the native ESPHome API and also features a gorgeous, standalone responsive web dashboard.
 
-<!--<p align="center"><img src="screenshot.png" title="OutEquipAC user interface" alt="A thermostat phone app screenshot with mode, temperature, and fan selection as well as current temperature readout" height="50%" width="50%" /></p>-->
+<p align="center"><img src="screenshot.jpeg" title="OutEquipAC user interface" alt="A thermostat phone app screenshot with mode, temperature, and fan selection as well as current temperature readout" height="50%" width="50%" /></p>
 
 ---
 
