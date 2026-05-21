@@ -9,7 +9,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.0"
+    version: "2.1.1"
   min_version: 2026.4.5
   on_boot:
     - priority: 600.0
@@ -28,9 +28,9 @@ external_components:
       path: components
   - source:
       type: git
-      url: https://github.com/gongloo/HyHeat.git
-      ref: v2.0.0
-    components: [ html_host ]
+      url: https://github.com/gongloo/esphome-web-host.git
+      ref: v1.0.0
+    components: [ web_host ]
 
 esp32:
   board: nologo_esp32c3_super_mini
@@ -153,24 +153,24 @@ sensor:
       web_server:
         sorting_group_id: electrical_section
 
-html_host:
+web_host:
   - id: ui_page
-    html_file: "data/htdocs/thermostat.html"
+    file: "data/htdocs/thermostat.html"
     url: "/thermostat"
   - id: ui_manifest
-    html_file: "data/htdocs/manifest.webmanifest"
+    file: "data/htdocs/manifest.webmanifest"
     url: "/manifest.webmanifest"
   - id: ui_sw
-    html_file: "data/htdocs/sw.js"
+    file: "data/htdocs/sw.js"
     url: "/sw.js"
   - id: ui_favicon
-    html_file: "data/htdocs/favicon.ico"
+    file: "data/htdocs/favicon.ico"
     url: "/favicon.ico"
   - id: ui_apple_touch_icon
-    html_file: "data/htdocs/apple-touch-icon.png"
+    file: "data/htdocs/apple-touch-icon.png"
     url: "/apple-touch-icon.png"
   - id: ui_icon_96
-    html_file: "data/htdocs/icon-96.png"
+    file: "data/htdocs/icon-96.png"
     url: "/icon-96.png"
 
 
