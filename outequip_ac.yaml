@@ -118,4 +118,7 @@ html_host:
   - id: ui_favicon
     html_file: "data/htdocs/favicon.ico"
     url: "/favicon.ico"
+  - id: ui_apple_touch_icon
+    html_file: "data/htdocs/apple-touch-icon.png"
+    url: "/apple-touch-icon.png"
 
