@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="data/htdocs/apple-touch-icon.png" width="96">
+
+# OutEquipAC
+
+</div>
+
 This project provides an ESPHome-based custom component to allow remote monitoring and control of OutEquipPro AC units (such as the Summit2) using an ESP32 microcontroller (e.g. ESP32-C3 Super Mini or Wemos C3 Mini) as a smart WiFi bridge.
 
 It integrates seamlessly with **Home Assistant** via the native ESPHome API and also features a gorgeous, standalone responsive web dashboard.
