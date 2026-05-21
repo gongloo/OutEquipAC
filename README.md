@@ -112,7 +112,7 @@ This project is built as a native **ESPHome External Component** located in the 
 
 - **Local Inclusion**: The `outequip_ac.yaml` configures the compiler to fetch components locally using the `external_components` block.
 - **Wired Serial Interface**: The ESP32 communicates with the control board using [a binary protocol](protocol.md). The code polls the board for state changes and pushes commands as requested. (On Bluetooth-enabled control boards, this serial interface is populated with a Bluetooth module; otherwise, it is unpopulated. Soldering directly to these pads allows the ESP32 to interface with the system).
-- **Embedded Web UI**: At compile time, the custom web interface inside `components/outequip_ac/thermostat.html` is automatically gzipped and embedded as a raw byte array inside the C++ build directory. It is served with high performance directly by the web server at `/thermostat`.
+- **Embedded Web UI**: At compile time, the custom web interface is automatically gzipped, preprocessed (with automatic download of Material Design Icons!), and embedded as a raw byte array inside the C++ build directory. It is served with high performance directly by the web server at `/thermostat`.
 - **Gzip Compression**: Compressing the HTML and icons reduces memory usage on the ESP32's flash and speeds up browser load times significantly.
 
 ---

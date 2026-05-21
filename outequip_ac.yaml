@@ -11,6 +11,10 @@ external_components:
   - source:
       type: local
       path: components
+  - source:
+      type: git
+      url: https://github.com/gongloo/HyHeat.git
+    components: [ html_host ]
 
 esp32:
   board: nologo_esp32c3_super_mini
@@ -106,4 +110,12 @@ sensor:
       internal: true # Summit2 always reports zero
       web_server:
         sorting_group_id: electrical_section
+
+html_host:
+  - id: ui_page
+    html_file: "data/htdocs/thermostat.html"
+    url: "/thermostat"
+  - id: ui_favicon
+    html_file: "data/htdocs/favicon.ico"
+    url: "/favicon.ico"
 

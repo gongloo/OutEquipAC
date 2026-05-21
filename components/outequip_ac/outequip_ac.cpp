@@ -6,7 +6,6 @@
 
 #ifdef USE_WEBSERVER
 #include "esphome/components/web_server_base/web_server_base.h"
-#include "outequip_ac_thermostat_html.h"
 #endif
 
 namespace esphome {
@@ -25,21 +24,12 @@ public:
     if (request->method() != HTTP_GET)
       return false;
     std::string url = request->url_to(url_buf);
-    return url == "/thermostat" || url == "/outequip_ac";
+    return url == "/outequip_ac";
   }
 
   void handleRequest(AsyncWebServerRequest *request) override {
     char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
     std::string url = request->url_to(url_buf);
-    if (url == "/thermostat") {
-      std::string html(reinterpret_cast<const char *>(OUTEQUIP_AC_HTML_GZ),
-                       OUTEQUIP_AC_HTML_GZ_SIZE);
-      AsyncWebServerResponse *response =
-          request->beginResponse(200, "text/html", html);
-      response->addHeader("Content-Encoding", "gzip");
-      request->send(response);
-      return;
-    }
 
     if (url == "/outequip_ac") {
       float min_temp = parent_->get_traits().get_visual_min_temperature();
