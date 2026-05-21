@@ -104,6 +104,31 @@ Since the ESPHome native API is active:
 3. **OutEquip AC** will be automatically discovered! Click **Configure**, approve, and assign it to an area.
 4. You can now control the AC with any standard Lovelace Climate card and view all temperatures/sensors on your dashboard.
 
+### Stats & Telemetry Reporting (InfluxDB / UDP)
+
+The bridge features a high-performance, asynchronous stats reporting engine that pushes raw telemetry data over UDP using the standard **InfluxDB Line Protocol**. This is ideal for logging high-resolution charts in Grafana or running custom analytics without taxing Home Assistant's database.
+
+#### 1. Configuration
+By default, stats reporting is disabled until you provide a target host. You can configure the parameters dynamically via the standard ESPHome Web Dashboard (`http://outequip-ac.local/`):
+- Navigate to the **UDP Configuration (Restart Required)** section.
+- Set the **InfluxDB IP** to your Telegraf, InfluxDB, or home server IP.
+- Set the **InfluxDB Port** (defaults to `8089`).
+- Restart the device for changes to take effect.
+
+> [!NOTE]
+> The reporting interval is defined by the `stats_update_interval_s` substitution at the top of `outequip_ac.yaml` (default: `10` seconds).
+
+#### 2. Exported Data Structure
+Each UDP packet sends a single Line Protocol point under the measurement `outequip-ac` containing:
+
+| Field Group | Keys / Fields | Description |
+| :--- | :--- | :--- |
+| **System Info** | `host`, `uptime_ms` | Hostname and microcontroller uptime in milliseconds |
+| **Climate State** | `power`, `mode`, `set_temp`, `fan_speed` | Active power, current mode, target temperature (°F), fan speed |
+| **Sensors** | `intake_temp`, `outlet_temp` | Ambient intake and outlet temperatures (°C) |
+| **Electrical** | `voltage`, `undervolt`, `overvolt` | AC line voltage, undervoltage protection limit, overvoltage protection limit |
+| **UART Diagnostics** | `frames_tx`, `frames_rx`, `frames_failed`, `spurious_bytes_rx` | Serial frame statistics, packet loss, and checksum failures |
+
 ---
 
 ## How It Works

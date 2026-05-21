@@ -1,11 +1,22 @@
 substitutions:
   name: "outequip-ac"
   friendly_name: "OutEquip AC"
+  stats_update_interval_s: "10"
 
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   name_add_mac_suffix: false
+  on_boot:
+    - priority: 600.0
+      then:
+        - lambda: |-
+            if (!id(influxdb_host_text).state.empty()) {
+              id(influxdb_udp)->set_addresses({id(influxdb_host_text).state.c_str()});
+            }
+            if (id(influxdb_port_number).state > 0) {
+              id(influxdb_udp)->set_broadcast_port(id(influxdb_port_number).state);
+            }
 
 external_components:
   - source:
@@ -37,6 +48,7 @@ captive_portal:
 
 web_server:
   version: 3
+  local: true
   sorting_groups:
     - id: climate_section
       name: "Climate"
@@ -47,6 +59,15 @@ web_server:
     - id: electrical_section
       name: "Electrical"
       sorting_weight: 30
+    - id: udp_settings
+      name: "UDP Configuration (Restart Required)"
+      sorting_weight: 60
+    - id: host_section
+      name: "Host"
+      sorting_weight: 100
+
+udp:
+  - id: influxdb_udp
 
 uart:
   id: uart_bus
@@ -62,6 +83,7 @@ climate:
   - platform: outequip_ac
     outequip_ac_id: ac_device
     name: "Thermostat"
+    id: ac_climate
     web_server:
       sorting_group_id: climate_section
 
@@ -70,15 +92,18 @@ switch:
     outequip_ac_id: ac_device
     lcd:
       name: "LCD Backlight"
+      id: ac_lcd
       web_server:
         sorting_group_id: switches_section
     swing:
       name: "Swing"
       internal: true # Summit2 lacks swing feature
+      id: ac_swing
       web_server:
         sorting_group_id: switches_section
     light:
       name: "Light"
+      id: ac_light
       web_server:
         sorting_group_id: switches_section
 
@@ -87,27 +112,33 @@ sensor:
     outequip_ac_id: ac_device
     intake_temp:
       name: "Intake Air Temp"
+      id: ac_intake_temp
       web_server:
         sorting_group_id: climate_section
     outlet_temp:
       name: "Outlet Air Temp"
+      id: ac_outlet_temp
       web_server:
         sorting_group_id: climate_section
     voltage:
       name: "Voltage"
+      id: ac_voltage
       web_server:
         sorting_group_id: electrical_section
     undervolt:
       name: "Undervolt Protect"
+      id: ac_undervolt
       web_server:
         sorting_group_id: electrical_section
     overvolt:
       name: "Overvolt Protect"
+      id: ac_overvolt
       web_server:
         sorting_group_id: electrical_section
     amperage:
       name: "Amperage"
       internal: true # Summit2 always reports zero
+      id: ac_amperage
       web_server:
         sorting_group_id: electrical_section
 
@@ -122,3 +153,149 @@ html_host:
     html_file: "data/htdocs/apple-touch-icon.png"
     url: "/apple-touch-icon.png"
 
+
+script:
+  - id: report_stats
+    then:
+      - udp.write:
+          id: influxdb_udp
+          data: !lambda |-
+            std::string rpt;
+            rpt.reserve(512);
+            char buf[64];
+
+            // Helper to get string representation of OnOffValue
+            auto onoff_str = [](ACFramer::OnOffValue val) -> const char* {
+              switch (val) {
+                case ACFramer::OnOffValue::On: return "on";
+                case ACFramer::OnOffValue::Off: return "off";
+                default: return "query";
+              }
+            };
+
+            // Helper to get string representation of ModeValue
+            auto mode_str = [](ACFramer::ModeValue val) -> const char* {
+              switch (val) {
+                case ACFramer::ModeValue::Cool: return "cool";
+                case ACFramer::ModeValue::Heat: return "heat";
+                case ACFramer::ModeValue::Fan: return "fan";
+                case ACFramer::ModeValue::Eco: return "eco";
+                case ACFramer::ModeValue::Sleep: return "sleep";
+                case ACFramer::ModeValue::Turbo: return "turbo";
+                case ACFramer::ModeValue::Wet: return "wet";
+                default: return "query";
+              }
+            };
+
+            // Helper to get string representation of Switch components
+            auto sw_str = [](switch_::Switch* sw) -> const char* {
+              if (sw == nullptr || !sw->has_state()) return "query";
+              return sw->state ? "on" : "off";
+            };
+
+            // Lambdas and functors to append formatted key-value pairs
+            auto add_val = [&](const char* name, float val, const char* format = "%.1f") {
+              if (std::isnan(val)) return;
+              if (!rpt.empty() && rpt.back() != ' ') rpt += ",";
+              rpt += name;
+              rpt += "=";
+              int n = snprintf(buf, sizeof(buf), format, val);
+              if (n > 0 && n < (int)sizeof(buf)) rpt.append(buf, n);
+            };
+
+            struct {
+              std::string &rpt;
+              char *buf;
+              size_t buf_size;
+              void operator()(const char* name, uint32_t val) {
+                if (!rpt.empty() && rpt.back() != ' ') rpt += ",";
+                rpt += name;
+                rpt += "=";
+                int n = snprintf(buf, buf_size, "%ui", val);
+                if (n > 0 && n < (int)buf_size) rpt.append(buf, n);
+              }
+              void operator()(const char* name, int val) {
+                operator()(name, static_cast<uint32_t>(val));
+              }
+              void operator()(const char* name, float val) {
+                if (std::isnan(val)) return;
+                operator()(name, static_cast<uint32_t>(std::round(val)));
+              }
+            } add_int{rpt, buf, sizeof(buf)};
+
+            auto add_str = [&](const char* name, const char* val) {
+              if (!rpt.empty() && rpt.back() != ' ') rpt += ",";
+              rpt += name;
+              rpt += "=\"";
+              rpt += val;
+              rpt += "\"";
+            };
+
+            // Start line protocol: outequip-ac,host=${name}
+            rpt = "outequip-ac,host=${name} ";
+
+            // Get pointer to our custom component to get internal state/counters
+            auto* ac = id(ac_device);
+
+            // Add fields using helper lambdas
+            add_str("power", onoff_str(ac->power_state()));
+            add_str("mode", mode_str(ac->cur_mode()));
+            add_int("set_temp", (id(ac_climate).target_temperature * 9.0f / 5.0f) + 32.0f);
+            add_int("fan_speed", static_cast<uint32_t>(ac->fan_speed()));
+            add_val("undervolt", id(ac_undervolt).state);
+            add_int("overvolt", id(ac_overvolt).state);
+            add_int("intake_temp", id(ac_intake_temp).state);
+            add_int("outlet_temp", id(ac_outlet_temp).state);
+            add_str("lcd", sw_str(id(ac_lcd)));
+            add_str("light", sw_str(id(ac_light)));
+            add_val("voltage", id(ac_voltage).state);
+            add_int("uptime_ms", millis());
+            add_int("frames_tx", ac->num_frames_tx());
+            add_int("frames_rx", ac->num_frames_rx());
+            add_int("frames_failed", ac->num_frames_failed());
+            add_int("spurious_bytes_rx", ac->num_spurious_bytes_rx());
+
+            ESP_LOGD("report_stats", "UDP: %s", rpt.c_str());
+            return std::vector<uint8_t>(rpt.begin(), rpt.end());
+
+interval:
+  - interval: ${stats_update_interval_s}s
+    then:
+      - script.execute: report_stats
+
+text:
+  - platform: template
+    mode: text
+    name: "InfluxDB IP"
+    id: influxdb_host_text
+    icon: "mdi:table-network"
+    optimistic: true
+    min_length: 7
+    max_length: 15
+    restore_value: true
+    entity_category: "config"
+    web_server:
+      sorting_group_id: "udp_settings"
+
+number:
+  - platform: template
+    name: "InfluxDB Port"
+    id: influxdb_port_number
+    icon: "mdi:numeric"
+    optimistic: true
+    min_value: 1
+    max_value: 65535
+    initial_value: 8089
+    step: 1
+    restore_value: true
+    entity_category: "config"
+    web_server:
+      sorting_group_id: "udp_settings"
+
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: "diagnostic"
+    web_server:
+      sorting_group_id: "host_section"
