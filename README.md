@@ -1,99 +1,127 @@
-This software allows remote control of OutEquipPro AC units like the Summit2 using an ESP32 microcontroller as a WiFi bridge.
+This project provides an ESPHome-based custom component to allow remote monitoring and control of OutEquipPro AC units (such as the Summit2) using an ESP32 microcontroller (e.g. ESP32-C3 Super Mini or Wemos C3 Mini) as a smart WiFi bridge.
 
-<p align="center"><img src="screenshot.png" title="OutEquipAC user interface" alt="A thermostat phone app screenshot with mode, temperature, and fan selection as well as current temperature readout" height="50%" width="50%" /></p>
+It integrates seamlessly with **Home Assistant** via the native ESPHome API and also features a gorgeous, standalone responsive web dashboard.
 
-# Installation Instructions
+<!--<p align="center"><img src="screenshot.png" title="OutEquipAC user interface" alt="A thermostat phone app screenshot with mode, temperature, and fan selection as well as current temperature readout" height="50%" width="50%" /></p>-->
 
-## What You'll Need
+---
 
-- ESP32-C3 (e.g. [Wemos C3 Mini](https://www.wemos.cc/en/latest/c3/c3_mini.html))
-- Soldering Iron
-- Solder
-- Thin Stranded Wire (e.g. 22awg)
-- Glue, Zip Tie, or Double-Sided Tape
+## Features
 
-## Software Installation
+- **Native Home Assistant Integration**: Seamless auto-discovery, custom climate controls, and high-performance sensor/switch entity mappings.
+- **Custom Premium Web UI**: A beautiful, mobile-friendly thermostat dashboard served directly from the ESP32 at `/thermostat`.
+- **Full Sensor Suite**: Real-time tracking of intake temperature, outlet temperature, voltage, and safety protections (undervolt, overvolt).
+- **Control Options**: Mode switching (Cool, Heat, Fan Only, Off), fan speed adjustment (Low, Medium, High), and secondary controls (LCD Backlight, Swing, Light).
+- **ESPHome Ecosystem Benefits**: Zero-config captive portal for WiFi onboarding, seamless Over-the-Air (OTA) updates, and standard ESPHome logs interface.
+
+---
+
+## Requirements
+
+- **ESP32-C3 Microcontroller** (e.g., [ESP32-C3 Super Mini](https://www.wemos.cc/en/latest/c3/c3_mini.html) or Wemos C3 Mini)
+- **Soldering Iron & Solder**
+- **Thin Stranded Wire** (e.g., 22AWG or 28AWG silicone wire)
+- **Affixing Material** (double-sided tape, hot glue, or zip ties)
+
+---
+
+## Installation & Setup
+
+### 1. Software Installation (Flash First!)
 
 > [!CAUTION]
-> **Do this step _before_ hardware installation.**
->
-> This avoids frying your devices by connecting your computer's USB port to a microcontroller being powered externally, as would be the case when powered via the 5V and Ground pins on the control board.
+> **Flash the microcontroller _before_ wiring it to your A/C.**
+> 
+> This prevents potential hardware damage caused by connecting your computer's USB port to an ESP32 that is simultaneously being powered by the A/C control board's 5V line.
 
-1. Clone this repo. Open in VS Code with pioarduino.
-1. Copy [`src/config.example.h`](src/config.example.h) to `src/config.h` and customize as necessary.
-1. Copy [`platformio_upload.example.ini`](platformio_upload.example.ini) to `platformio_upload.ini` and provide admin credentials for use in future OTA updates.
-1. Build and flash the microcontroller firmware using pioarduino.
-1. Build and flash the microcontroller filesystem using pioarduino.
+1. **Install ESPHome** on your computer if you haven't already:
+   ```bash
+   pip install esphome
+   ```
+2. **Clone this repository** and navigate to its root directory:
+   ```bash
+   git clone https://github.com/yourusername/OutEquipAC.git
+   cd OutEquipAC
+   ```
+3. **Configure WiFi (Optional)**:
+   By default, if the ESP32 cannot connect to a network, it will launch a hotspot named **OutEquip AC Fallback** (with a captive portal to select your WiFi network).
+   If you prefer to hardcode your WiFi credentials directly:
+   - Edit `outequip_ac.yaml` to include your details under the `wifi:` block:
+     ```yaml
+     wifi:
+       networks:
+         - ssid: "YOUR_WIFI_SSID"
+           password: "YOUR_WIFI_PASSWORD"
+     ```
+4. **Compile and Flash**:
+   - Connect the ESP32 to your computer using a USB cable (ensure the A/C is disconnected).
+   - Run the compile and upload command:
+     ```bash
+     esphome run outequip_ac.yaml
+     ```
+   - This command downloads dependencies, compiles the local custom components, uploads the firmware over USB, and launches the live log viewer.
 
-> [!NOTE]
-> Flashing the firmware and filesystem are separate steps. Be sure to complete both of them.
+---
 
-## Hardware Installation
+### 2. Hardware Installation
 
 ![A long, narrow PCB connected by four wires to a much smaller PCB](control_board.jpg "A/C control board connected to ESP32 C3 Super Mini")
 
-Solder headers or wires onto the control board pads labelled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
+1. **Solder wires** onto the control board pads labeled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
+2. **Connect the other ends** of the wires to the appropriate pins on your ESP32. By default, the pin mappings are:
 
-Connect the other ends of those wires to the appropriate pins on the microcontroller, as per [`config.h`](src/config.example.h). By default, that's:
+| Control Board Pad | C3 Mini Pin | Description |
+| :---------------- | :-------------------------------- | :---------- |
+| **5V**            | **VBUS** (or 5V / Vin)            | Power Input |
+| **GND**           | **GND**                           | Ground      |
+| **RX**            | **GPIO 4**                        | UART TX     |
+| **TX**            | **GPIO 3**                        | UART RX     |
 
-| Control Board | C3 Mini |
-| ------------- | ------- |
-| 5V            | VBUS    |
-| GND           | GND     |
-| RX            | 4       |
-| TX            | 3       |
-
-Once hooked up, secure the wires and microcontroller with some combination of glue, a zip tie, or double-sided tape.
+3. **Secure the components**: Once connected, use tape, hot glue, or zip ties to secure the ESP32 in place.
 
 > [!NOTE]
-> The microcontroller should be affixed in such a location and orientation that the IR shield has one of its LEDs pointed in the direction of the control board. In practice, pointing an LED at the backside of the control board seems to work fine.
+> Affix the ESP32 in a location that protects it from humidity and avoids contact with metal, such as the air conditioner's mounting brackets.
 
-> [!IMPORTANT]
-> Be sure to affix the microcontroller in order to avoid contact with metal, e.g. A/C mounting brackets.
+---
 
-## Configuration
+## Configuration & Usage
 
-Supply power to your A/C and join the `OutEquipAC` WiFi network. Your device should detect a captive portal, but if not navigate to `192.168.4.1` to reach the configuration page where you can select the WiFi network that your microcontroller should connect to.
+### WiFi Setup (Captive Portal)
+If you did not hardcode your WiFi credentials, the ESP32 will broadcast a WiFi access point named **OutEquip AC Fallback**.
+1. Connect to this network on your phone or computer.
+2. The captive portal configuration page should open automatically. If not, open your web browser and navigate to `http://192.168.4.1`.
+3. Select your local home WiFi network, enter your password, and save.
 
-Once WiFi configuration is complete, connect to the microcontroller via your web browser. By default, it should be reachable at `http://outequip-ac.local`.
+### Accessing the Custom Web Interface
+Once the ESP32 connects to your local network, you can access it via browser:
+- **Standard ESPHome Dashboard**: `http://outequip-ac.local/` (gives direct access to raw entity controls, status indicators, and built-in OTA updates).
+- **Premium Custom UI**: `http://outequip-ac.local/thermostat` (a premium, responsive mobile-friendly dashboard styled exactly like the screenshot above).
 
-# How It Works
+### Home Assistant Integration
+Since the ESPHome native API is active:
+1. Open **Home Assistant**.
+2. Go to **Settings -> Devices & Services**.
+3. **OutEquip AC** will be automatically discovered! Click **Configure**, approve, and assign it to an area.
+4. You can now control the AC with any standard Lovelace Climate card and view all temperatures/sensors on your dashboard.
 
-An Arduino microcontroller (Lolin/Wemos C3 Mini recommended) interfaces directly with the air conditioner control board over a wired serial interface. This enables full bidirectional communcation and control of the air conditioner. In turn, the microcontroller exposes a web app allowing remote control of the air conditioner over WiFi.
+---
 
-## Wired A/C Interface
+## How It Works
 
-The control board for this model air conditioner has a wired serial interface. In the case of bluetooth-enabled control boards, this serial interface is populated with a bluetooth module. Otherwise, this interface is unpopulated. With a little bit of solder and some effort, a connection can be made for microcontroller use of this serial interface. Conveniently, the control board exposes 5V and ground pins for powering the microcontroller as well.
+This project is built as a native **ESPHome External Component** located in the `components/` directory:
 
-From there, the Arduino code manages the A/C control board via [a binary protocol](protocol.md). The microcontroller queries the control board for updated state every couple of seconds, and sets that state as needed.
+- **Local Inclusion**: The `outequip_ac.yaml` configures the compiler to fetch components locally using the `external_components` block.
+- **Wired Serial Interface**: The ESP32 communicates with the control board using [a binary protocol](protocol.md). The code polls the board for state changes and pushes commands as requested. (On Bluetooth-enabled control boards, this serial interface is populated with a Bluetooth module; otherwise, it is unpopulated. Soldering directly to these pads allows the ESP32 to interface with the system).
+- **Embedded Web UI**: At compile time, the custom web interface inside `components/outequip_ac/thermostat.html` is automatically gzipped and embedded as a raw byte array inside the C++ build directory. It is served with high performance directly by the web server at `/thermostat`.
+- **Gzip Compression**: Compressing the HTML and icons reduces memory usage on the ESP32's flash and speeds up browser load times significantly.
 
-## WiFi Configuration
+---
 
-WiFi is configured at runtime via [NetWizard](https://github.com/ayushsharma82/NetWizard). On start, if there's no WiFi configuration stored, the microcontroller will broadcast a WiFi hotspot with SSID `OutEquipAC` with a captive portal allowing configuration. To reset configuration, reboot the microcontroller 5 times in a row, waiting between 5 and 50 seconds between reboots.
+## Troubleshooting
 
-## Web App
-
-A web app offers basic A/C controls (`/` on port 80 once WiFi is configured). The web app updates state from the microcontroller every few seconds.
-
-## API
-
-A JSON state dump can be retrieved at `/var_dump`.
-
-A simple REST API for setting state is available at `/set`. See code for details.
-
-## OTA Updates
-
-A web interface for over-the-air updates is made available via [ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) at `/update`.
-
-## Stats Reporting
-
-Statistics can be periodically reported to InfluxDB via UDP. Disabled by default. Configured via `config.h`.
-
-## Debug Interface
-
-A read-write debug interface is made available via [WebSerial](https://github.com/ayushsharma82/WebSerial) at `/webserial`.
-
-A read-only serial log is available via the standard serial interface on the microcontroler.
+- **No Data / Connection Fails**: Verify that RX and TX are not swapped. The ESP32's TX (GPIO 4) should connect to the A/C board's RX, and the ESP32's RX (GPIO 3) should connect to the A/C board's TX.
+- **Microcontroller Bootloop/Brownout**: Ensure you are supplying clean 5V power to the `VBUS` / `5V` pin on the ESP32.
+- **Live Logs**: Run `esphome logs outequip_ac.yaml` while connected to the same network (or via USB) to see real-time diagnostics and check protocol communication frames.
 
 > [!CAUTION]
-> To avoid frying your devices, **never connect a USB interface to a microcontroller when powered externally**, as would be the case when powered via the 5V and Ground pins on the control board.
+> Always disconnect the 5V line from the control board before connecting the ESP32 to your computer's USB port! Failing to do so can bridge the internal power supply of the A/C with your computer's USB power, risking permanent damage to both devices.
