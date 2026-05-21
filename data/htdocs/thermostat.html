@@ -104,6 +104,69 @@
       margin-bottom: 0.5rem;
     }
 
+    /* Brand container & Version tag styles matching HyHeat */
+    .brand-container {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    }
+
+    .brand-container:hover .logo {
+      opacity: 0.9;
+    }
+
+    .brand-container:active .logo {
+      transform: scale(0.98);
+    }
+
+    .version-wrapper {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+      width: 150px;
+      text-align: center;
+    }
+
+    .brand-container.show-version .version-wrapper {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+
+    .version-tag {
+      overflow: hidden;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding-top: 0.15rem;
+      text-transform: uppercase;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(-5px);
+    }
+
+    .brand-container.show-version .version-tag {
+      transform: translateY(0);
+    }
+
     .header-logo {
       width: var(--header-size);
       height: var(--header-size);
@@ -118,6 +181,7 @@
       background: linear-gradient(to right, #ffffff, #9ca3af);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      margin: 0;
     }
 
     main {
@@ -567,8 +631,15 @@
   <div class="ambient-glow" id="ambient-glow"></div>
 
   <header>
-    <img src="icon-96.png" alt="OutEquip Logo" class="header-logo" id="header-logo">
-    <h1>OutEquip AC</h1>
+    <div class="brand-container" id="brand_container">
+      <h1 class="logo">
+        <img src="icon-96.png" alt="OutEquip Logo" class="header-logo" id="header-logo">
+        <span>OutEquip AC</span>
+      </h1>
+      <div class="version-wrapper">
+        <div class="version-tag">v${version}</div>
+      </div>
+    </div>
   </header>
 
   <main>
@@ -1115,6 +1186,15 @@
       const tempUnitSuffix = useFahrenheit ? '°F' : '°C';
       if (el.intakeTemp) el.intakeTemp.textContent = '--' + tempUnitSuffix;
       if (el.outletTemp) el.outletTemp.textContent = '--' + tempUnitSuffix;
+
+      // Bind brand click for toggleable version string
+      const brandContainer = document.getElementById('brand_container');
+      if (brandContainer) {
+        brandContainer.addEventListener('click', () => {
+          brandContainer.classList.toggle('show-version');
+          triggerHaptic(10);
+        });
+      }
 
       // Bind unified Pointer events to dial (Option 2)
       if (el.dialOuter) {
