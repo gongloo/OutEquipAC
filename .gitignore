@@ -1,12 +1,8 @@
-.pio
-.version_no_increment
-.vscode
-platformio_upload.ini
-src/config.h
-.cache
-.clangd
-.esphome
-compile_commands.json
 **/__pycache__/
 *.pyc
 .DS_Store
+.cache
+.clangd
+.esphome
+.pio
+.vscode
