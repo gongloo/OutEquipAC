@@ -4,46 +4,8 @@
 #include "esphome/core/preferences.h"
 #include <cmath>
 
-#ifdef USE_WEBSERVER
-#include "esphome/components/web_server_base/web_server_base.h"
-#endif
-
 namespace esphome {
 namespace outequip_ac {
-
-#ifdef USE_WEBSERVER
-class OutEquipCustomPageHandler : public AsyncWebHandler {
-protected:
-  OutEquipAC *parent_;
-
-public:
-  OutEquipCustomPageHandler(OutEquipAC *parent) : parent_(parent) {}
-
-  bool canHandle(AsyncWebServerRequest *request) const override {
-    char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
-    if (request->method() != HTTP_GET)
-      return false;
-    std::string url = request->url_to(url_buf);
-    return url == "/outequip_ac";
-  }
-
-  void handleRequest(AsyncWebServerRequest *request) override {
-    char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
-    std::string url = request->url_to(url_buf);
-
-    if (url == "/outequip_ac") {
-      float min_temp = parent_->get_traits().get_visual_min_temperature();
-      float max_temp = parent_->get_traits().get_visual_max_temperature();
-      char json_buf[128];
-      snprintf(json_buf, sizeof(json_buf), "{\"min_temp\":%.1f,\"max_temp\":%.1f}", min_temp, max_temp);
-      AsyncWebServerResponse *response = request->beginResponse(
-          200, "application/json", json_buf);
-      request->send(response);
-      return;
-    }
-  }
-};
-#endif
 
 void OutEquipACSwitch::write_state(bool state) {
   if (parent_ != nullptr) {
@@ -103,13 +65,6 @@ void OutEquipAC::set_light_state(bool state) {
 void OutEquipAC::setup() {
   EnqueueFrame(ACFramer::Key::Active, 0);
   last_frame_sent = millis();
-
-#ifdef USE_WEBSERVER
-  if (web_server_base::global_web_server_base != nullptr) {
-    web_server_base::global_web_server_base->add_handler(
-        new OutEquipCustomPageHandler(this));
-  }
-#endif
 }
 
 void OutEquipAC::loop() {

@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>OutEquip AC Thermostat</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -699,22 +700,28 @@
       return parseFloat(celsius).toFixed(1) + '°C';
     }
 
+    // DOM Cache for premium performance and cleaner code architecture (Option 5)
+    const el = {
+      targetTemp: document.getElementById('target-temp'),
+      statusState: document.getElementById('status-state'),
+      intakeTemp: document.getElementById('intake-temp'),
+      outletTemp: document.getElementById('outlet-temp'),
+      connBanner: document.getElementById('conn-banner'),
+      connText: document.getElementById('conn-text'),
+      ambientGlow: document.getElementById('ambient-glow'),
+      dialOuter: document.getElementById('dial-outer'),
+      dialRing: document.getElementById('dial-ring'),
+      sliderTrack: document.getElementById('slider-track'),
+      sliderProgress: document.getElementById('slider-progress'),
+      sliderHandle: document.getElementById('slider-handle'),
+      fanIcon: document.getElementById('fan-icon')
+    };
+
     // State values
     let currentTargetTemp = useFahrenheit ? 70 : 21;
     let climateEntityId = 'thermostat'; // Default name of climate entity
     let activeMode = 'off';
     let activeFanMode = 'high';
-
-    // UI Elements
-    const targetTempEl = document.getElementById('target-temp');
-    const statusStateEl = document.getElementById('status-state');
-    const intakeTempEl = document.getElementById('intake-temp');
-    const outletTempEl = document.getElementById('outlet-temp');
-    const connBannerEl = document.getElementById('conn-banner');
-    const connTextEl = document.getElementById('conn-text');
-    const ambientGlowEl = document.getElementById('ambient-glow');
-    const dialOuterEl = document.getElementById('dial-outer');
-    const dialRingEl = document.getElementById('dial-ring');
 
     // Color definitions
     const colors = {
@@ -732,6 +739,17 @@
     // Dynamic Dial boundaries (Celsius standard default, converted at runtime)
     let minTemp = useFahrenheit ? 60 : 16;
     let maxTemp = useFahrenheit ? 86 : 30;
+
+    // Premium Tactile Haptic Vibration (Option 3)
+    function triggerHaptic(duration) {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(duration);
+        } catch (err) {
+          // Blocked or unsupported on some browser security/frame contexts
+        }
+      }
+    }
 
     // Radial slider geometry helper functions
     function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
@@ -765,54 +783,22 @@
       if (pct > 1) pct = 1;
 
       const trackD = describeArc(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, 225, 135);
-      const trackEl = document.getElementById('slider-track');
-      if (trackEl) trackEl.setAttribute('d', trackD);
+      if (el.sliderTrack) el.sliderTrack.setAttribute('d', trackD);
 
       const currentAngle = 225 + pct * 270;
 
-      const progressEl = document.getElementById('slider-progress');
-      if (progressEl) {
+      if (el.sliderProgress) {
         if (pct === 0) {
-          progressEl.setAttribute('d', '');
+          el.sliderProgress.setAttribute('d', '');
         } else {
-          progressEl.setAttribute('d', describeArc(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, 225, currentAngle));
+          el.sliderProgress.setAttribute('d', describeArc(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, 225, currentAngle));
         }
       }
 
       const handlePos = polarToCartesian(DIAL_CENTER, DIAL_CENTER, DIAL_RADIUS, currentAngle);
-      const handleEl = document.getElementById('slider-handle');
-      if (handleEl) {
-        handleEl.setAttribute('cx', handlePos.x);
-        handleEl.setAttribute('cy', handlePos.y);
-      }
-    }
-
-    // Dynamic configuration fetch via API
-    async function fetchClimateLimits() {
-      try {
-        const response = await fetch(`${basePath}outequip_ac`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.min_temp !== undefined) {
-            let fetchedMin = parseFloat(data.min_temp);
-            if (useFahrenheit) {
-              minTemp = Math.round(fetchedMin * 9 / 5 + 32);
-            } else {
-              minTemp = fetchedMin;
-            }
-          }
-          if (data.max_temp !== undefined) {
-            let fetchedMax = parseFloat(data.max_temp);
-            if (useFahrenheit) {
-              maxTemp = Math.round(fetchedMax * 9 / 5 + 32);
-            } else {
-              maxTemp = fetchedMax;
-            }
-          }
-          updateDialProgress();
-        }
-      } catch (err) {
-        console.error("Failed to fetch climate limits", err);
+      if (el.sliderHandle) {
+        el.sliderHandle.setAttribute('cx', handlePos.x);
+        el.sliderHandle.setAttribute('cy', handlePos.y);
       }
     }
 
@@ -832,13 +818,11 @@
       document.documentElement.style.setProperty('--accent-grad', stateDetails.glow);
       document.documentElement.style.setProperty('--accent-color', `rgb(${stateDetails.rgb})`);
 
-      statusStateEl.textContent = mode.replace('_', ' ');
+      if (el.statusState) el.statusState.textContent = mode.replace('_', ' ');
 
-      if (dialRingEl) {
-        dialRingEl.classList.toggle('pulsing', mode !== 'off');
+      if (el.dialRing) {
+        el.dialRing.classList.toggle('pulsing', mode !== 'off');
       }
-
-
 
       // Force visual update on mode change
       updateDialProgress();
@@ -857,20 +841,19 @@
     }
 
     function updateFanAnimation() {
-      const fanIcon = document.getElementById('fan-icon');
-      if (!fanIcon) return;
+      if (!el.fanIcon) return;
 
       if (activeMode === 'off') {
-        fanIcon.classList.remove('spinning');
+        el.fanIcon.classList.remove('spinning');
       } else {
-        fanIcon.classList.add('spinning');
+        el.fanIcon.classList.add('spinning');
         let duration = '2s'; // low
         if (activeFanMode === 'medium') {
           duration = '1.4s';
         } else if (activeFanMode === 'high') {
           duration = '0.8s';
         }
-        fanIcon.style.setProperty('--fan-duration', duration);
+        el.fanIcon.style.setProperty('--fan-duration', duration);
       }
     }
 
@@ -881,7 +864,7 @@
       } else {
         currentTargetTemp = parseFloat(targetTempCelsius);
       }
-      targetTempEl.textContent = currentTargetTemp.toFixed(0);
+      if (el.targetTemp) el.targetTemp.textContent = currentTargetTemp.toFixed(0);
       updateDialProgress();
     }
 
@@ -901,18 +884,18 @@
     }
 
     function showError(msg) {
-      connTextEl.textContent = msg;
-      connBannerEl.classList.add('active');
+      if (el.connText) el.connText.textContent = msg;
+      if (el.connBanner) el.connBanner.classList.add('active');
     }
 
     function hideError() {
-      connBannerEl.classList.remove('active');
+      if (el.connBanner) el.connBanner.classList.remove('active');
     }
 
     // Set Target Temperature Call
     function setTargetTemp(temp) {
       currentTargetTemp = temp;
-      targetTempEl.textContent = currentTargetTemp.toFixed(0);
+      if (el.targetTemp) el.targetTemp.textContent = currentTargetTemp.toFixed(0);
 
       let apiTemp = temp;
       if (useFahrenheit) {
@@ -933,52 +916,55 @@
       sendCommand({ fan_mode: fanMode });
     }
 
-    // Click Bindings
+    // Click Bindings with tactile haptics (Option 3)
     document.getElementById('temp-up').addEventListener('click', () => {
+      triggerHaptic(15);
       setTargetTemp(currentTargetTemp + 1);
     });
 
     document.getElementById('temp-down').addEventListener('click', () => {
+      triggerHaptic(15);
       setTargetTemp(currentTargetTemp - 1);
     });
 
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        triggerHaptic(15);
         setMode(btn.getAttribute('data-mode'));
       });
     });
 
     document.querySelectorAll('.fan-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        triggerHaptic(15);
         setFanSpeed(btn.getAttribute('data-fan'));
       });
     });
 
-    // Radial slider mouse/touch drag handlers
+    // Unified Pointer Drag handlers for standard mouse/touch controls (Option 2)
     let isDragging = false;
+    let lastDragEndTime = 0;
 
-    function handleDrag(e) {
+    function handlePointerDown(e) {
+      if (activeMode === 'off') return;
+      isDragging = true;
+
+      // Capture dragging events even when the pointer wanders off the exact element
+      if (el.dialOuter) {
+        el.dialOuter.setPointerCapture(e.pointerId);
+      }
+      handlePointerMove(e);
+    }
+
+    function handlePointerMove(e) {
       if (!isDragging || activeMode === 'off') return;
 
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-
-      let clientX, clientY;
-      if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      }
-
-      const rect = dialOuterEl.getBoundingClientRect();
+      const rect = el.dialOuter.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
-      const dx = clientX - centerX;
-      const dy = clientY - centerY;
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
 
       let angleRad = Math.atan2(dy, dx);
       let angleDeg = angleRad * 180 / Math.PI + 90;
@@ -1011,64 +997,100 @@
 
       if (temp !== currentTargetTemp) {
         currentTargetTemp = temp;
-        targetTempEl.textContent = currentTargetTemp.toFixed(0);
+        if (el.targetTemp) el.targetTemp.textContent = currentTargetTemp.toFixed(0);
         updateDialProgress();
+
+        // High-end tactile tick feedback during rotation (Option 3)
+        triggerHaptic(10);
       }
     }
 
-    function stopDrag() {
+    function handlePointerUp(e) {
       if (!isDragging) return;
       isDragging = false;
-      document.removeEventListener('mousemove', handleDrag);
-      document.removeEventListener('touchmove', handleDrag);
-      document.removeEventListener('mouseup', stopDrag);
-      document.removeEventListener('touchend', stopDrag);
+      lastDragEndTime = Date.now();
+
+      if (el.dialOuter) {
+        try {
+          el.dialOuter.releasePointerCapture(e.pointerId);
+        } catch (err) {
+          // Ignored
+        }
+      }
 
       setTargetTemp(currentTargetTemp);
     }
 
-    function startDrag(e) {
-      isDragging = true;
-      handleDrag(e);
-      document.addEventListener('mousemove', handleDrag);
-      document.addEventListener('touchmove', handleDrag, { passive: false });
-      document.addEventListener('mouseup', stopDrag);
-      document.addEventListener('touchend', stopDrag);
-    }
+    // Real-time Event Subscription (SSE) with Visibility Sleep Optimization (Option 1)
+    let sseSource = null;
 
-    dialOuterEl.addEventListener('mousedown', startDrag);
-    dialOuterEl.addEventListener('touchstart', startDrag, { passive: false });
-
-    // Real-time Event Subscription (SSE)
     function setupSSE() {
+      // Clean up previous event streams to prevent stale connection leaks
+      if (sseSource) {
+        try {
+          sseSource.close();
+        } catch (err) {
+          console.error("Error closing previous EventSource:", err);
+        }
+      }
+
       const source = new EventSource(`${basePath}events`);
+      sseSource = source;
 
       const handleStateEvent = function (event) {
         try {
           const data = JSON.parse(event.data);
 
+          // ESPHome migration step helper (remove after 2026.08.0)
+          if (data.name_id) data.id = data.name_id;
+
+          // Prevent real-time events from overwriting active user dialing operations
+          const allowTargetTempUpdates = !isDragging && (Date.now() - lastDragEndTime > 1500);
+
           // 1. Handle Climate states
-          if (data.id && data.id.startsWith('climate-')) {
+          if (data.id && data.id === 'climate/Thermostat') {
             hideError();
 
             // Dynamically discover entity ID and name from the event
             const newEntityId = data.name_id ? data.name_id.split('/').pop() : data.id.split('-').slice(1).join('-');
             if (climateEntityId !== newEntityId) {
               climateEntityId = newEntityId;
-              fetchClimateLimits();
             }
 
-            if (data.target_temperature !== undefined) updateTempUI(data.target_temperature);
+            // Extract climate temperature limits dynamically
+            const eventMin = parseFloat(data.min_temp ?? data.min_temperature);
+            if (!isNaN(eventMin)) {
+              if (useFahrenheit) {
+                minTemp = Math.round(eventMin * 9 / 5 + 32);
+              } else {
+                minTemp = eventMin;
+              }
+            }
+            const eventMax = parseFloat(data.max_temp ?? data.max_temperature);
+            if (!isNaN(eventMax)) {
+              if (useFahrenheit) {
+                maxTemp = Math.round(eventMax * 9 / 5 + 32);
+              } else {
+                maxTemp = eventMax;
+              }
+            }
+
+            if (data.target_temperature !== undefined && allowTargetTempUpdates) {
+              updateTempUI(data.target_temperature);
+            }
             if (data.mode !== undefined) updateModeUI(data.mode);
             if (data.fan_mode !== undefined) updateFanUI(data.fan_mode);
+
+            // Ensure visual progress dials are updated with any new boundaries
+            updateDialProgress();
           }
 
           // 2. Handle sensor states
-          if (data.id && data.id.includes('intake')) {
-            intakeTempEl.textContent = displaySensorTemp(parseFloat(data.value));
+          if (data.id === 'sensor/Intake Air Temp') {
+            if (el.intakeTemp) el.intakeTemp.textContent = displaySensorTemp(parseFloat(data.value));
           }
-          if (data.id && data.id.includes('outlet')) {
-            outletTempEl.textContent = displaySensorTemp(parseFloat(data.value));
+          if (data.id === 'sensor/Outlet Air Temp') {
+            if (el.outletTemp) el.outletTemp.textContent = displaySensorTemp(parseFloat(data.value));
           }
         } catch (err) {
           console.error("SSE parse error", err);
@@ -1091,18 +1113,23 @@
     function start() {
       // Set initial units placeholders dynamically
       const tempUnitSuffix = useFahrenheit ? '°F' : '°C';
-      intakeTempEl.textContent = '--' + tempUnitSuffix;
-      outletTempEl.textContent = '--' + tempUnitSuffix;
+      if (el.intakeTemp) el.intakeTemp.textContent = '--' + tempUnitSuffix;
+      if (el.outletTemp) el.outletTemp.textContent = '--' + tempUnitSuffix;
 
-      const logoEl = document.getElementById('header-logo');
-      if (logoEl) {
-        logoEl.src = `${basePath}icon-96.png`;
+      // Bind unified Pointer events to dial (Option 2)
+      if (el.dialOuter) {
+        el.dialOuter.addEventListener('pointerdown', handlePointerDown);
+        el.dialOuter.addEventListener('pointermove', handlePointerMove);
+        el.dialOuter.addEventListener('pointerup', handlePointerUp);
+        el.dialOuter.addEventListener('pointercancel', handlePointerUp);
       }
 
       showError('Connecting to controller...');
-      setupSSE();
-      // Fetch initial traits API limits
-      fetchClimateLimits();
+
+      // Connect SSE only if tab is visible/active (Option 1)
+      if (document.visibilityState === 'visible') {
+        setupSSE();
+      }
 
       // Standalone / PWA Mode status bar overlap mitigation
       const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
@@ -1110,6 +1137,23 @@
         document.documentElement.classList.add('standalone-mode');
       }
     }
+
+    // Visibility API handlers: Pause SSE connections when backgrounded to save sockets/battery (Option 1)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        setupSSE();
+      } else {
+        if (sseSource) {
+          try {
+            sseSource.close();
+            sseSource = null;
+          } catch (err) {
+            console.error("Error closing EventSource:", err);
+          }
+          showError('Updates paused in background');
+        }
+      }
+    });
 
     window.onload = start;
   </script>
