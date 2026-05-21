@@ -6,3 +6,4 @@
 .esphome
 .pio
 .vscode
+secrets.yaml
