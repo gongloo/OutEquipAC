@@ -152,6 +152,12 @@ html_host:
   - id: ui_page
     html_file: "data/htdocs/thermostat.html"
     url: "/thermostat"
+  - id: ui_manifest
+    html_file: "data/htdocs/manifest.webmanifest"
+    url: "/manifest.webmanifest"
+  - id: ui_sw
+    html_file: "data/htdocs/sw.js"
+    url: "/sw.js"
   - id: ui_favicon
     html_file: "data/htdocs/favicon.ico"
     url: "/favicon.ico"

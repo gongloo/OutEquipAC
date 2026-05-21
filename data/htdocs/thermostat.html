@@ -3,10 +3,13 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>OutEquip AC Thermostat</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -62,6 +65,17 @@
       align-items: center;
       padding: 1.5rem 1rem;
       overflow-x: hidden;
+    }
+
+    /* Standalone Web App / PWA overrides to account for translucent status bar */
+    @media (display-mode: standalone) {
+      body {
+        padding-top: calc(env(safe-area-inset-top, 24px) + 0.5rem);
+      }
+    }
+
+    html.standalone-mode body {
+      padding-top: calc(env(safe-area-inset-top, 24px) + 0.5rem);
     }
 
     /* Ambient Glow Backdrops */
@@ -673,6 +687,10 @@
       return path.substring(0, path.lastIndexOf('/') + 1);
     })();
 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
     // Helper function for display temperatures
     function displaySensorTemp(celsius) {
       if (useFahrenheit) {
@@ -1085,6 +1103,12 @@
       setupSSE();
       // Fetch initial traits API limits
       fetchClimateLimits();
+
+      // Standalone / PWA Mode status bar overlap mitigation
+      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) {
+        document.documentElement.classList.add('standalone-mode');
+      }
     }
 
     window.onload = start;
