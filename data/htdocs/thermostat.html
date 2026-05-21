@@ -38,6 +38,9 @@
       /* Icon animation variables */
       --cool-tilt-angle: 20deg;
       --heat-tilt-angle: 8deg;
+
+      /* Header configuration variables */
+      --header-size: 32px;
     }
 
     * {
@@ -79,11 +82,22 @@
     header {
       width: 100%;
       max-width: 420px;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .header-logo {
+      width: var(--header-size);
+      height: var(--header-size);
+      object-fit: contain;
+      filter: drop-shadow(0 2px 10px rgba(255, 255, 255, 0.15));
     }
 
     header h1 {
-      font-size: 1.8rem;
+      font-size: var(--header-size);
       font-weight: 600;
       letter-spacing: -0.02em;
       background: linear-gradient(to right, #ffffff, #9ca3af);
@@ -538,7 +552,8 @@
   <div class="ambient-glow" id="ambient-glow"></div>
 
   <header>
-    <h1>OutEquip Climate</h1>
+    <img src="icon-96.png" alt="OutEquip Logo" class="header-logo" id="header-logo">
+    <h1>OutEquip AC</h1>
   </header>
 
   <main>
@@ -1060,6 +1075,11 @@
       const tempUnitSuffix = useFahrenheit ? '°F' : '°C';
       intakeTempEl.textContent = '--' + tempUnitSuffix;
       outletTempEl.textContent = '--' + tempUnitSuffix;
+
+      const logoEl = document.getElementById('header-logo');
+      if (logoEl) {
+        logoEl.src = `${basePath}icon-96.png`;
+      }
 
       showError('Connecting to controller...');
       setupSSE();
