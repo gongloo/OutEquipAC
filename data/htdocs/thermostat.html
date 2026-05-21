@@ -432,25 +432,28 @@
       padding: 0.35rem;
     }
 
-    .mode-btn {
+    .mode-btn,
+    .fan-btn {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 0.75rem 0.25rem;
       border-radius: 0.75rem;
-      border: none;
+      border: 1px solid transparent;
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
       font-family: inherit;
       font-size: 0.7rem;
       font-weight: 500;
+      text-transform: capitalize;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       gap: 0.35rem;
     }
 
-    .mode-btn svg {
+    .mode-btn svg,
+    .fan-btn svg {
       width: 20px;
       height: 20px;
       fill: currentColor;
@@ -478,8 +481,6 @@
       border: 1px solid rgba(249, 115, 22, 0.2);
     }
 
-
-
     .mode-btn.active[data-mode="fan_only"] {
       background: rgba(16, 185, 129, 0.15);
       color: var(--color-fan);
@@ -487,7 +488,8 @@
       border: 1px solid rgba(16, 185, 129, 0.2);
     }
 
-    .mode-btn.active svg {
+    .mode-btn.active svg,
+    .fan-btn.active svg {
       transform: scale(1.25);
     }
 
@@ -540,20 +542,6 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 0.5rem;
       padding: 0.35rem;
-    }
-
-    .fan-btn {
-      padding: 0.8rem 0.25rem;
-      border-radius: 0.75rem;
-      border: 1px solid transparent;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.8rem;
-      font-weight: 500;
-      text-transform: capitalize;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .fan-btn.active {
@@ -694,7 +682,6 @@
 
     <!-- Thermostat Mode Selector -->
     <div class="section">
-      <h3 class="section-title">Mode</h3>
       <div class="glass-card modes-grid">
         <button class="mode-btn" data-mode="off" title="Off">
           <svg viewBox="0 0 24 24" data-mdi="power"></svg>
@@ -717,11 +704,19 @@
 
     <!-- Fan Speed Grid Selector -->
     <div class="section">
-      <h3 class="section-title">Fan Speed</h3>
       <div class="glass-card fan-selector">
-        <button class="fan-btn" data-fan="low">Low</button>
-        <button class="fan-btn" data-fan="medium">Med</button>
-        <button class="fan-btn" data-fan="high">High</button>
+        <button class="fan-btn" data-fan="low" title="Low">
+          <svg viewBox="0 0 24 24" data-mdi="fan-speed-1"></svg>
+          Low
+        </button>
+        <button class="fan-btn" data-fan="medium" title="Medium">
+          <svg viewBox="0 0 24 24" data-mdi="fan-speed-2"></svg>
+          Med
+        </button>
+        <button class="fan-btn" data-fan="high" title="High">
+          <svg viewBox="0 0 24 24" data-mdi="fan-speed-3"></svg>
+          High
+        </button>
       </div>
     </div>
   </main>
