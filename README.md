@@ -39,8 +39,48 @@ It integrates seamlessly with **Home Assistant** via the native ESPHome API and 
 
 > [!CAUTION]
 > **Flash the microcontroller _before_ wiring it to your A/C.**
-> 
+>
 > This prevents potential hardware damage caused by connecting your computer's USB port to an ESP32 that is simultaneously being powered by the A/C control board's 5V line.
+
+To compile and flash the firmware to your microcontroller, you have two options:
+
+#### Option A: ESPHome Package Integration (Recommended)
+
+If you manage your smart home devices through a centralized ESPHome dashboard or configuration directory, you can cleanly integrate OutEquip AC as an **ESPHome Package**. This keeps private credentials in your central `secrets.yaml` and allows pulling upstream updates cleanly without Git merge conflicts.
+
+1. Create a configuration file (e.g. `outequip_ac.yaml`) in your central ESPHome configuration directory:
+
+   ```yaml
+    substitutions:
+      # Path to the base OutEquipAC repository checkout or GitHub URI
+      # Required for finding custom component and web interface files
+      outequip_ac_source: "../../OutEquipAC"
+
+    packages:
+      outequip_ac: !include ${outequip_ac_source}/outequip_ac.yaml
+
+   # Supply credentials from your centralized secrets.yaml
+   wifi:
+     ssid: !secret wifi_ssid
+     password: !secret wifi_password
+
+   api:
+     encryption:
+       key: !secret api_encryption_key
+
+   ota:
+     - platform: esphome
+       password: !secret ota_password
+   ```
+
+2. Compile and run it from your ESPHome working directory:
+   ```bash
+   esphome run outequip_ac.yaml
+   ```
+
+#### Option B: Standalone Direct Compile
+
+If you prefer to compile directly within your local clone of this repository:
 
 1. **Install ESPHome** on your computer if you haven't already:
    ```bash
@@ -51,23 +91,22 @@ It integrates seamlessly with **Home Assistant** via the native ESPHome API and 
    git clone https://github.com/yourusername/OutEquipAC.git
    cd OutEquipAC
    ```
-3. **Configure WiFi (Optional)**:
-   By default, if the ESP32 cannot connect to a network, it will launch a hotspot named **OutEquip AC Fallback** (with a captive portal to select your WiFi network).
-   If you prefer to hardcode your WiFi credentials directly:
-   - Edit `outequip_ac.yaml` to include your details under the `wifi:` block:
-     ```yaml
-     wifi:
-       networks:
-         - ssid: "YOUR_WIFI_SSID"
-           password: "YOUR_WIFI_PASSWORD"
-     ```
+3. **Configure Local Secrets**:
+   Since the core config contains no hardcoded credentials, create a local `secrets.yaml` inside your cloned directory with your credentials:
+   ```yaml
+   wifi_ssid: "YOUR_WIFI_SSID"
+   wifi_password: "YOUR_WIFI_PASSWORD"
+   api_encryption_key: "YOUR_API_KEY"
+   ota_password: "YOUR_OTA_PASSWORD"
+   ```
+   _(Or leave secrets empty to boot into the automatic **OutEquip AC Fallback** captive portal hotspot to configure WiFi dynamically)._
 4. **Compile and Flash**:
    - Connect the ESP32 to your computer using a USB cable (ensure the A/C is disconnected).
-   - Run the compile and upload command:
+   - Run the compiler:
      ```bash
      esphome run outequip_ac.yaml
      ```
-   - This command downloads dependencies, compiles the local custom components, uploads the firmware over USB, and launches the live log viewer.
+   - This command downloads dependencies, compiles the custom local component, uploads the firmware over USB, and launches the live log viewer.
 
 ---
 
@@ -78,12 +117,12 @@ It integrates seamlessly with **Home Assistant** via the native ESPHome API and 
 1. **Solder wires** onto the control board pads labeled `5V`, `GND`, `RX`, and `TX`. The additional `CAN_RX` and `CAN_TX` pins can be left unpopulated.
 2. **Connect the other ends** of the wires to the appropriate pins on your ESP32. By default, the pin mappings are:
 
-| Control Board Pad | C3 Mini Pin | Description |
-| :---------------- | :-------------------------------- | :---------- |
-| **5V**            | **VBUS** (or 5V / Vin)            | Power Input |
-| **GND**           | **GND**                           | Ground      |
-| **RX**            | **GPIO 4**                        | UART TX     |
-| **TX**            | **GPIO 3**                        | UART RX     |
+| Control Board Pad | C3 Mini Pin            | Description |
+| :---------------- | :--------------------- | :---------- |
+| **5V**            | **VBUS** (or 5V / Vin) | Power Input |
+| **GND**           | **GND**                | Ground      |
+| **RX**            | **GPIO 4**             | UART TX     |
+| **TX**            | **GPIO 3**             | UART RX     |
 
 3. **Secure the components**: Once connected, use tape, hot glue, or zip ties to secure the ESP32 in place.
 
@@ -95,18 +134,24 @@ It integrates seamlessly with **Home Assistant** via the native ESPHome API and 
 ## Configuration & Usage
 
 ### WiFi Setup (Captive Portal)
+
 If you did not hardcode your WiFi credentials, the ESP32 will broadcast a WiFi access point named **OutEquip AC Fallback**.
+
 1. Connect to this network on your phone or computer.
 2. The captive portal configuration page should open automatically. If not, open your web browser and navigate to `http://192.168.4.1`.
 3. Select your local home WiFi network, enter your password, and save.
 
 ### Accessing the Custom Web Interface
+
 Once the ESP32 connects to your local network, you can access it via browser:
+
 - **Standard ESPHome Dashboard**: `http://outequip-ac.local/` (gives direct access to raw entity controls, status indicators, and built-in OTA updates).
 - **Premium Custom UI**: `http://outequip-ac.local/thermostat` (a premium, responsive mobile-friendly dashboard styled exactly like the screenshot above).
 
 ### Home Assistant Integration
+
 Since the ESPHome native API is active:
+
 1. Open **Home Assistant**.
 2. Go to **Settings -> Devices & Services**.
 3. **OutEquip AC** will be automatically discovered! Click **Configure**, approve, and assign it to an area.
@@ -117,7 +162,9 @@ Since the ESPHome native API is active:
 The bridge features a high-performance, asynchronous stats reporting engine that pushes raw telemetry data over UDP using the standard **InfluxDB Line Protocol**. This is ideal for logging high-resolution charts in Grafana or running custom analytics without taxing Home Assistant's database.
 
 #### 1. Configuration
+
 By default, stats reporting is disabled until you provide a target host. You can configure the parameters dynamically via the standard ESPHome Web Dashboard (`http://outequip-ac.local/`):
+
 - Navigate to the **UDP Configuration (Restart Required)** section.
 - Set the **InfluxDB IP** to your Telegraf, InfluxDB, or home server IP.
 - Set the **InfluxDB Port** (defaults to `8089`).
@@ -127,15 +174,16 @@ By default, stats reporting is disabled until you provide a target host. You can
 > The reporting interval is defined by the `stats_update_interval_s` substitution at the top of `outequip_ac.yaml` (default: `10` seconds).
 
 #### 2. Exported Data Structure
+
 Each UDP packet sends a single Line Protocol point under the measurement `outequip-ac` containing:
 
-| Field Group | Keys / Fields | Description |
-| :--- | :--- | :--- |
-| **System Info** | `host`, `uptime_ms` | Hostname and microcontroller uptime in milliseconds |
-| **Climate State** | `power`, `mode`, `set_temp`, `fan_speed` | Active power, current mode, target temperature (°F), fan speed |
-| **Sensors** | `intake_temp`, `outlet_temp` | Ambient intake and outlet temperatures (°C) |
-| **Electrical** | `voltage`, `undervolt`, `overvolt` | AC line voltage, undervoltage protection limit, overvoltage protection limit |
-| **UART Diagnostics** | `frames_tx`, `frames_rx`, `frames_failed`, `spurious_bytes_rx` | Serial frame statistics, packet loss, and checksum failures |
+| Field Group          | Keys / Fields                                                  | Description                                                                  |
+| :------------------- | :------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| **System Info**      | `host`, `uptime_ms`                                            | Hostname and microcontroller uptime in milliseconds                          |
+| **Climate State**    | `power`, `mode`, `set_temp`, `fan_speed`                       | Active power, current mode, target temperature (°F), fan speed               |
+| **Sensors**          | `intake_temp`, `outlet_temp`                                   | Ambient intake and outlet temperatures (°C)                                  |
+| **Electrical**       | `voltage`, `undervolt`, `overvolt`                             | AC line voltage, undervoltage protection limit, overvoltage protection limit |
+| **UART Diagnostics** | `frames_tx`, `frames_rx`, `frames_failed`, `spurious_bytes_rx` | Serial frame statistics, packet loss, and checksum failures                  |
 
 ---
 

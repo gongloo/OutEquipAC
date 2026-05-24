@@ -3,13 +3,17 @@ substitutions:
   friendly_name: "OutEquip AC"
   stats_update_interval_s: "10"
 
+  # Source location of the custom external component.
+  # Can be a local path string or a git repository source block.
+  outequip_ac_source: "."
+
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.1"
+    version: "2.1.2"
   min_version: 2026.4.5
   on_boot:
     - priority: 600.0
@@ -23,14 +27,13 @@ esphome:
             }
 
 external_components:
-  - source:
-      type: local
-      path: components
+  - source: ${outequip_ac_source if outequip_ac_source.startswith("github://") else outequip_ac_source + "/components" }
+    components: [outequip_ac]
   - source:
       type: git
       url: https://github.com/gongloo/esphome-web-host.git
-      ref: v1.0.0
-    components: [ web_host ]
+      ref: v2.0.0
+    components: [web_host]
 
 esp32:
   board: nologo_esp32c3_super_mini
@@ -42,16 +45,11 @@ logger:
 
 api:
   reboot_timeout: 0s
-  encryption:
-    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
-    password: "!secret ota_password"
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
   ap:
     ssid: "${friendly_name} Fallback"
 
@@ -154,25 +152,26 @@ sensor:
         sorting_group_id: electrical_section
 
 web_host:
-  - id: ui_page
-    file: "data/htdocs/thermostat.html"
-    url: "/thermostat"
-  - id: ui_manifest
-    file: "data/htdocs/manifest.webmanifest"
-    url: "/manifest.webmanifest"
-  - id: ui_sw
-    file: "data/htdocs/sw.js"
-    url: "/sw.js"
-  - id: ui_favicon
-    file: "data/htdocs/favicon.ico"
-    url: "/favicon.ico"
-  - id: ui_apple_touch_icon
-    file: "data/htdocs/apple-touch-icon.png"
-    url: "/apple-touch-icon.png"
-  - id: ui_icon_96
-    file: "data/htdocs/icon-96.png"
-    url: "/icon-96.png"
-
+  source: ${outequip_ac_source}
+  files:
+    - id: ui_page
+      file: "data/htdocs/thermostat.html"
+      url: "/thermostat"
+    - id: ui_manifest
+      file: "data/htdocs/manifest.webmanifest"
+      url: "/manifest.webmanifest"
+    - id: ui_sw
+      file: "data/htdocs/sw.js"
+      url: "/sw.js"
+    - id: ui_favicon
+      file: "data/htdocs/favicon.ico"
+      url: "/favicon.ico"
+    - id: ui_apple_touch_icon
+      file: "data/htdocs/apple-touch-icon.png"
+      url: "/apple-touch-icon.png"
+    - id: ui_icon_96
+      file: "data/htdocs/icon-96.png"
+      url: "/icon-96.png"
 
 script:
   - id: report_stats
