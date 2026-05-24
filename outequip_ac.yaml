@@ -5,7 +5,7 @@ substitutions:
 
   # Source location of the custom external component.
   # Can be a local path string or a git repository source block.
-  outequip_ac_source: "."
+  outequip_ac_component_source: "components"
 
 esphome:
   name: ${name}
@@ -27,12 +27,13 @@ esphome:
             }
 
 external_components:
-  - source: ${outequip_ac_source if outequip_ac_source.startswith("github://") else outequip_ac_source + "/components" }
+  - source: ${outequip_ac_component_source}
+    id: "outequip_ac_component"
     components: [outequip_ac]
   - source:
       type: git
       url: https://github.com/gongloo/esphome-web-host.git
-      ref: v2.0.0
+      ref: v2.1.0
     components: [web_host]
 
 esp32:
@@ -152,7 +153,6 @@ sensor:
         sorting_group_id: electrical_section
 
 web_host:
-  source: ${outequip_ac_source}
   files:
     - id: ui_page
       file: "data/htdocs/thermostat.html"
