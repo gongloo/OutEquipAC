@@ -54,10 +54,10 @@ If you manage your smart home devices through a centralized ESPHome dashboard or
     substitutions:
       # Path to the base OutEquipAC repository checkout or GitHub URI
       # Required for finding custom component and web interface files
-      outequip_ac_source: "../../OutEquipAC"
+      outequip_ac_component_source: github://gongloo/OutEquipAC@v2.1.3
 
     packages:
-      outequip_ac: !include ${outequip_ac_source}/outequip_ac.yaml
+      outequip_ac: ${outequip_ac_component_source | replace("@", "/outequip_ac.yaml@")}
 
    # Supply credentials from your centralized secrets.yaml
    wifi:

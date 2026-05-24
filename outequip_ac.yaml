@@ -33,7 +33,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/gongloo/esphome-web-host.git
-      ref: v2.1.0
+      ref: v2.1.1
     components: [web_host]
 
 esp32:
