@@ -13,7 +13,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.2"
+    version: "2.1.3"
   min_version: 2026.4.5
   on_boot:
     - priority: 600.0
@@ -33,7 +33,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/gongloo/esphome-web-host.git
-      ref: v2.1.1
+      ref: v2.1.0
     components: [web_host]
 
 esp32:
