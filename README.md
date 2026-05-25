@@ -48,7 +48,7 @@ To compile and flash the firmware to your microcontroller, you have two options:
 
 If you manage your smart home devices through a centralized ESPHome dashboard or configuration directory, you can cleanly integrate OutEquip AC as an **ESPHome Package**. This keeps private credentials in your central `secrets.yaml` and allows pulling upstream updates cleanly without Git merge conflicts.
 
-1. Create a configuration file (e.g. `outequip_ac.yaml`) in your central ESPHome configuration directory:
+1. Create a configuration file (e.g. `outequip-ac.yaml`) in your central ESPHome configuration directory:
 
    ```yaml
     substitutions:
@@ -57,7 +57,7 @@ If you manage your smart home devices through a centralized ESPHome dashboard or
       outequip_ac_component_source: github://gongloo/OutEquipAC@v2.1.3
 
     packages:
-      outequip_ac: ${outequip_ac_component_source | replace("@", "/outequip_ac.yaml@")}
+      outequip_ac: ${outequip_ac_component_source | replace("@", "/outequip-ac.yaml@")}
 
    # Supply credentials from your centralized secrets.yaml
    wifi:
@@ -75,7 +75,7 @@ If you manage your smart home devices through a centralized ESPHome dashboard or
 
 2. Compile and run it from your ESPHome working directory:
    ```bash
-   esphome run outequip_ac.yaml
+   esphome run outequip-ac.yaml
    ```
 
 #### Option B: Standalone Direct Compile
@@ -104,7 +104,7 @@ If you prefer to compile directly within your local clone of this repository:
    - Connect the ESP32 to your computer using a USB cable (ensure the A/C is disconnected).
    - Run the compiler:
      ```bash
-     esphome run outequip_ac.yaml
+     esphome run outequip-ac.yaml
      ```
    - This command downloads dependencies, compiles the custom local component, uploads the firmware over USB, and launches the live log viewer.
 
@@ -171,7 +171,7 @@ By default, stats reporting is disabled until you provide a target host. You can
 - Restart the device for changes to take effect.
 
 > [!NOTE]
-> The reporting interval is defined by the `stats_update_interval_s` substitution at the top of `outequip_ac.yaml` (default: `10` seconds).
+> The reporting interval is defined by the `stats_update_interval_s` substitution at the top of `outequip-ac.yaml` (default: `10` seconds).
 
 #### 2. Exported Data Structure
 
@@ -191,7 +191,7 @@ Each UDP packet sends a single Line Protocol point under the measurement `outequ
 
 This project is built as a native **ESPHome External Component** located in the `components/` directory:
 
-- **Local Inclusion**: The `outequip_ac.yaml` configures the compiler to fetch components locally using the `external_components` block.
+- **Local Inclusion**: The `outequip-ac.yaml` configures the compiler to fetch components locally using the `external_components` block.
 - **Wired Serial Interface**: The ESP32 communicates with the control board using [a binary protocol](protocol.md). The code polls the board for state changes and pushes commands as requested. (On Bluetooth-enabled control boards, this serial interface is populated with a Bluetooth module; otherwise, it is unpopulated. Soldering directly to these pads allows the ESP32 to interface with the system).
 - **Embedded Web UI**: At compile time, the custom web interface is automatically gzipped, preprocessed (with automatic download of Material Design Icons!), and embedded as a raw byte array inside the C++ build directory. It is served with high performance directly by the web server at `/thermostat`.
 - **Gzip Compression**: Compressing the HTML and icons reduces memory usage on the ESP32's flash and speeds up browser load times significantly.
@@ -202,7 +202,7 @@ This project is built as a native **ESPHome External Component** located in the 
 
 - **No Data / Connection Fails**: Verify that RX and TX are not swapped. The ESP32's TX (GPIO 4) should connect to the A/C board's RX, and the ESP32's RX (GPIO 3) should connect to the A/C board's TX.
 - **Microcontroller Bootloop/Brownout**: Ensure you are supplying clean 5V power to the `VBUS` / `5V` pin on the ESP32.
-- **Live Logs**: Run `esphome logs outequip_ac.yaml` while connected to the same network (or via USB) to see real-time diagnostics and check protocol communication frames.
+- **Live Logs**: Run `esphome logs outequip-ac.yaml` while connected to the same network (or via USB) to see real-time diagnostics and check protocol communication frames.
 
 > [!CAUTION]
 > Always disconnect the 5V line from the control board before connecting the ESP32 to your computer's USB port! Failing to do so can bridge the internal power supply of the A/C with your computer's USB power, risking permanent damage to both devices.
