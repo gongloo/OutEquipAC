@@ -3,9 +3,10 @@ substitutions:
   friendly_name: "OutEquip AC"
   stats_update_interval_s: "10"
 
-  # Source location of the custom external component.
+  # Source location of the custom external components.
   # Can be a local path string or a git repository source block.
   outequip_ac_component_source: "components"
+  web_host_component_source: "github://gongloo/esphome-web-host@v2.1.1"
 
 esphome:
   name: ${name}
@@ -13,8 +14,8 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.4"
-  min_version: 2026.4.5
+    version: "2.1.5"
+  min_version: 2026.7.4
   on_boot:
     - priority: 600.0
       then:
@@ -30,10 +31,8 @@ external_components:
   - source: ${outequip_ac_component_source}
     id: "outequip_ac_component"
     components: [outequip_ac]
-  - source:
-      type: git
-      url: https://github.com/gongloo/esphome-web-host.git
-      ref: v2.1.0
+  - source: ${web_host_component_source}
+    id: "web_host_component"
     components: [web_host]
 
 esp32:
@@ -230,7 +229,7 @@ script:
                 if (!rpt.empty() && rpt.back() != ' ') rpt += ",";
                 rpt += name;
                 rpt += "=";
-                int n = snprintf(buf, buf_size, "%ui", val);
+                int n = snprintf(buf, buf_size, "%" PRIu32 "i", val);
                 if (n > 0 && n < (int)buf_size) rpt.append(buf, n);
               }
               void operator()(const char* name, int val) {
