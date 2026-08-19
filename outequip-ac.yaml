@@ -14,7 +14,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.5"
+    version: "2.1.6"
   min_version: 2026.7.4
   on_boot:
     - priority: 600.0
