@@ -786,7 +786,7 @@
 
     // State values
     let currentTargetTemp = useFahrenheit ? 70 : 21;
-    let climateEntityId = 'thermostat'; // Default name of climate entity
+    let climateEntityId = 'Thermostat'; // Default name of climate entity
     let activeMode = 'off';
     let activeFanMode = 'high';
 
@@ -939,7 +939,7 @@
     async function sendCommand(params) {
       try {
         const queryParams = new URLSearchParams(params).toString();
-        const response = await fetch(`${basePath}climate/${climateEntityId}/set?${queryParams}`, {
+        const response = await fetch(`${basePath}climate/${encodeURIComponent(climateEntityId)}/set?${queryParams}`, {
           method: 'POST'
         });
         if (!response.ok) {
@@ -1108,21 +1108,12 @@
         try {
           const data = JSON.parse(event.data);
 
-          // ESPHome migration step helper (remove after 2026.08.0)
-          if (data.name_id) data.id = data.name_id;
-
           // Prevent real-time events from overwriting active user dialing operations
           const allowTargetTempUpdates = !isDragging && (Date.now() - lastDragEndTime > 1500);
 
           // 1. Handle Climate states
-          if (data.id && data.id === 'climate/Thermostat') {
+          if (data.id === 'climate/Thermostat') {
             hideError();
-
-            // Dynamically discover entity ID and name from the event
-            const newEntityId = data.name_id ? data.name_id.split('/').pop() : data.id.split('-').slice(1).join('-');
-            if (climateEntityId !== newEntityId) {
-              climateEntityId = newEntityId;
-            }
 
             // Extract climate temperature limits dynamically
             const eventMin = parseFloat(data.min_temp ?? data.min_temperature);
