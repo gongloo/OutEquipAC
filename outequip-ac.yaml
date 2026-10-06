@@ -14,14 +14,33 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.7"
+    version: "2.1.8"
   min_version: 2026.8.0
   on_boot:
     - priority: 600.0
       then:
         - lambda: |-
             if (!id(influxdb_host_text).state.empty()) {
-              id(influxdb_udp)->set_addresses({id(influxdb_host_text).state.c_str()});
+              auto set_udp_addr = [](auto *udp, const char *addr) {
+                // TODO: Remove `set_udp_addr` entirely once ESPHome PR #20085 lands in a stable
+                // release (ESPHome >= 2026.10.0 or 2026.11.0) and min_version / CI stable is bumped.
+                // Replace with direct inline calls:
+                //   static std::string s_ip = id(influxdb_host_text).state;
+                //   static const char *addrs[] = {s_ip.c_str(), nullptr};
+                //   id(influxdb_udp)->set_addresses(addrs);
+                if constexpr (requires { udp->set_addresses(static_cast<const char *const *>(nullptr)); }) {
+                  // New API (ESPHome >= 2026.10): nullptr-terminated table in static memory
+                  static std::string s_ip;
+                  s_ip = addr;
+                  static const char *addrs[] = {s_ip.c_str(), nullptr};
+                  addrs[0] = s_ip.c_str();
+                  udp->set_addresses(addrs);
+                } else {
+                  // Legacy API (ESPHome <= 2026.9.x): std::initializer_list
+                  udp->set_addresses({addr});
+                }
+              };
+              set_udp_addr(id(influxdb_udp), id(influxdb_host_text).state.c_str());
             }
             if (id(influxdb_port_number).state > 0) {
               id(influxdb_udp)->set_broadcast_port(id(influxdb_port_number).state);
