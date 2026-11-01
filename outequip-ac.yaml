@@ -24,6 +24,10 @@ esphome:
               static std::string s_ip = id(influxdb_host_text).state;
               static const char *addrs[] = {s_ip.c_str(), nullptr};
               id(influxdb_udp)->set_addresses(addrs);
+            } else {
+              // Ensure default broadcast 255.255.255.255 is disabled when host is unconfigured
+              static const char *const empty_addrs[] = {nullptr};
+              id(influxdb_udp)->set_addresses(empty_addrs);
             }
             if (id(influxdb_port_number).state > 0) {
               id(influxdb_udp)->set_broadcast_port(id(influxdb_port_number).state);
@@ -234,12 +238,16 @@ script:
                 int n = snprintf(buf, buf_size, "%" PRIu32 "i", val);
                 if (n > 0 && n < (int)buf_size) rpt.append(buf, n);
               }
-              void operator()(const char* name, int val) {
-                operator()(name, static_cast<uint32_t>(val));
+              void operator()(const char* name, int32_t val) {
+                if (!rpt.empty() && rpt.back() != ' ') rpt += ",";
+                rpt += name;
+                rpt += "=";
+                int n = snprintf(buf, buf_size, "%" PRId32 "i", val);
+                if (n > 0 && n < (int)buf_size) rpt.append(buf, n);
               }
               void operator()(const char* name, float val) {
                 if (std::isnan(val)) return;
-                operator()(name, static_cast<uint32_t>(std::round(val)));
+                operator()(name, static_cast<int32_t>(std::lround(val)));
               }
             } add_int{rpt, buf, sizeof(buf)};
 
@@ -281,7 +289,11 @@ script:
 interval:
   - interval: ${stats_update_interval_s}s
     then:
-      - script.execute: report_stats
+      - if:
+          condition:
+            lambda: 'return !id(influxdb_host_text).state.empty();'
+          then:
+            - script.execute: report_stats
 
 text:
   - platform: template
@@ -290,7 +302,7 @@ text:
     id: influxdb_host_text
     icon: "mdi:table-network"
     optimistic: true
-    min_length: 7
+    min_length: 0
     max_length: 15
     restore_value: true
     entity_category: "config"
