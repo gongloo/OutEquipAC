@@ -38,27 +38,28 @@ void OutEquipAC::set_lcd_state(bool state) {
   ESP_LOGD("outequip_ac", "Setting LCD state to %s", state ? "ON" : "OFF");
   EnqueueFrame(ACFramer::Key::LCD,
                state ? static_cast<uint16_t>(ACFramer::OnOffValue::On)
-                     : static_cast<uint16_t>(ACFramer::OnOffValue::Off));
-  if (lcd_switch_ != nullptr) {
-    lcd_switch_->publish_state(state);
-  }
+                     : static_cast<uint16_t>(ACFramer::OnOffValue::Off),
+               true /* query_after */);
 }
 
 void OutEquipAC::set_swing_state(bool state) {
   ESP_LOGD("outequip_ac", "Setting Swing state to %s", state ? "ON" : "OFF");
   EnqueueFrame(ACFramer::Key::Swing,
                state ? static_cast<uint16_t>(ACFramer::OnOffValue::On)
-                     : static_cast<uint16_t>(ACFramer::OnOffValue::Off));
+                     : static_cast<uint16_t>(ACFramer::OnOffValue::Off),
+               true /* query_after */);
 }
 
 void OutEquipAC::set_light_state(bool state) {
   ESP_LOGD("outequip_ac", "Setting Light state to %s", state ? "ON" : "OFF");
+  // Summit2 control board status reporting for Light is buggy, so do not query_after.
+  // We maintain light state optimistically.
   EnqueueFrame(ACFramer::Key::Light,
                state ? static_cast<uint16_t>(ACFramer::LightValue::On)
-                     : static_cast<uint16_t>(ACFramer::LightValue::Off));
+                     : static_cast<uint16_t>(ACFramer::LightValue::Off),
+               false /* query_after */);
   if (light_switch_ != nullptr) {
     light_switch_->publish_state(state);
-    light_switch_->set_has_state(true);
   }
 }
 
@@ -68,7 +69,22 @@ void OutEquipAC::setup() {
 }
 
 void OutEquipAC::loop() {
-  if (millis() - last_frame_sent >= 1000) {
+  uint32_t now = millis();
+  if (awaiting_response_) {
+    // Timeout waiting for response: retry / proceed after 1000ms
+    if (now - last_frame_sent >= 1000) {
+      ESP_LOGW("outequip_ac", "Timeout waiting for UART response");
+      awaiting_response_ = false;
+      expecting_key.reset();
+      if (in_flight_is_query_) {
+        if (++cur_query_key_idx >= sizeof(kQueryKeys) / sizeof(*kQueryKeys)) {
+          cur_query_key_idx = 0;
+          last_full_status = now;
+        }
+      }
+      MaybeSendCurFrame();
+    }
+  } else if (!txQueue.empty() || now - last_full_status >= 1000) {
     MaybeSendCurFrame();
   }
 
@@ -77,6 +93,14 @@ void OutEquipAC::loop() {
       ESP_LOGD("outequip_ac", "Publishing sensor state for '%s': %.1f",
                sensor->get_name().c_str(), value);
       sensor->publish_state(value);
+    }
+  };
+
+  auto publish_switch = [](switch_::Switch *sw, bool state) {
+    if (sw != nullptr && (!sw->has_state() || sw->state != state)) {
+      ESP_LOGD("outequip_ac", "Publishing switch state for '%s': %s",
+               sw->get_name().c_str(), state ? "ON" : "OFF");
+      sw->publish_state(state);
     }
   };
 
@@ -103,12 +127,10 @@ void OutEquipAC::loop() {
         cur_power_state_ = static_cast<ACFramer::OnOffValue>(value);
         if (lcd_switch_ != nullptr) {
           if (cur_power_state_ == ACFramer::OnOffValue::Off) {
-            lcd_switch_->publish_state(false);
-            lcd_switch_->set_has_state(true);
+            publish_switch(lcd_switch_, false);
           } else if (old_power_state == ACFramer::OnOffValue::Off &&
                      cur_power_state_ == ACFramer::OnOffValue::On) {
-            lcd_switch_->publish_state(true);
-            lcd_switch_->set_has_state(true);
+            publish_switch(lcd_switch_, true);
           }
         }
         break;
@@ -117,10 +139,22 @@ void OutEquipAC::loop() {
         cur_mode_ = static_cast<ACFramer::ModeValue>(value);
         break;
       case ACFramer::Key::SetTemperature: {
-        float new_target = (value - 32.0f) * 5.0f / 9.0f;
+        float new_target;
+        if (value >= 16 && value <= 30) {
+          // Board is in Celsius mode (16-30 C)
+          board_uses_fahrenheit_ = false;
+          new_target = static_cast<float>(value);
+        } else if (value >= 60 && value <= 86) {
+          // Board is in Fahrenheit mode (60-86 F)
+          board_uses_fahrenheit_ = true;
+          new_target = (value - 32.0f) * 5.0f / 9.0f;
+        } else {
+          // Ignore invalid or query-reflection 0 values
+          break;
+        }
         if (this->target_temperature != new_target) {
-          ESP_LOGD("outequip_ac", "Climate target temp changed to %.1f C",
-                   new_target);
+          ESP_LOGD("outequip_ac", "Climate target temp changed to %.1f C (raw=%d, fahrenheit=%d)",
+                   new_target, value, board_uses_fahrenheit_);
           this->target_temperature = new_target;
           climate_changed = true;
         }
@@ -169,26 +203,16 @@ void OutEquipAC::loop() {
       case ACFramer::Key::LCD:
         if (lcd_switch_ != nullptr &&
             cur_power_state_ == ACFramer::OnOffValue::On) {
-          // A serial-interface reported value of 1 is off and 0 is on
-          bool is_on = (value == 0);
-          if (!lcd_switch_->has_state() || lcd_switch_->state != is_on) {
-            ESP_LOGD("outequip_ac", "LCD switch state changed to %s",
-                     is_on ? "ON" : "OFF");
-            lcd_switch_->publish_state(is_on);
-            lcd_switch_->set_has_state(true);
-          }
+          // A serial-interface reported value of 1 is off, 0 or 2 is on
+          bool is_on = (value == 0 || value == 2);
+          publish_switch(lcd_switch_, is_on);
         }
         break;
       case ACFramer::Key::Swing:
         if (swing_switch_ != nullptr) {
           bool is_on =
               (value == static_cast<uint16_t>(ACFramer::OnOffValue::On));
-          if (!swing_switch_->has_state() || swing_switch_->state != is_on) {
-            ESP_LOGD("outequip_ac", "Swing switch state changed to %s",
-                     is_on ? "ON" : "OFF");
-            swing_switch_->publish_state(is_on);
-            swing_switch_->set_has_state(true);
-          }
+          publish_switch(swing_switch_, is_on);
         }
         break;
       case ACFramer::Key::Amperage:
@@ -240,12 +264,17 @@ void OutEquipAC::loop() {
       // Check response expecting
       if (expecting_key.has_value() && *expecting_key == key) {
         expecting_key.reset();
-        if (key == kQueryKeys[cur_query_key_idx]) {
+        awaiting_response_ = false;
+        if (in_flight_is_query_ && key == kQueryKeys[cur_query_key_idx]) {
           if (++cur_query_key_idx >= sizeof(kQueryKeys) / sizeof(*kQueryKeys)) {
             cur_query_key_idx = 0;
             last_full_status = millis();
           }
         }
+      } else {
+        // Any valid packet received clears the awaiting_response_ and expecting_key state
+        awaiting_response_ = false;
+        expecting_key.reset();
       }
 
       rxFramer.Reset();
@@ -271,7 +300,7 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
     auto m = *call.get_mode();
     if (m == climate::CLIMATE_MODE_OFF) {
       EnqueueFrame(ACFramer::Key::Mode, 1);
-      EnqueueFrame(ACFramer::Key::Power, 1);
+      EnqueueFrame(ACFramer::Key::Power, 1, true /* query_after */);
     } else {
       uint16_t ac_mode = 0;
       if (m == climate::CLIMATE_MODE_COOL)
@@ -282,17 +311,23 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
         ac_mode = 3;
 
       if (ac_mode != 0)
-        EnqueueFrame(ACFramer::Key::Mode, ac_mode);
-      EnqueueFrame(ACFramer::Key::Power, 2);
+        EnqueueFrame(ACFramer::Key::Mode, ac_mode, true /* query_after */);
+      EnqueueFrame(ACFramer::Key::Power, 2, true /* query_after */);
     }
   }
 
   if (call.get_target_temperature().has_value()) {
-    // ESPHome provides target temperature in Celsius, convert to Fahrenheit
-    // for the board
-    float fahrenheit = (*call.get_target_temperature() * 9.0f / 5.0f) + 32.0f;
-    EnqueueFrame(ACFramer::Key::SetTemperature,
-                 static_cast<uint16_t>(std::round(fahrenheit)));
+    float target_c = *call.get_target_temperature();
+    uint16_t target_wire_val;
+    if (board_uses_fahrenheit_) {
+      // Board in Fahrenheit: convert Celsius to Fahrenheit
+      float fahrenheit = (target_c * 9.0f / 5.0f) + 32.0f;
+      target_wire_val = static_cast<uint16_t>(std::round(fahrenheit));
+    } else {
+      // Board in Celsius: round to nearest degree C
+      target_wire_val = static_cast<uint16_t>(std::round(target_c));
+    }
+    EnqueueFrame(ACFramer::Key::SetTemperature, target_wire_val, true /* query_after */);
   }
 
   if (call.get_fan_mode().has_value()) {
@@ -304,21 +339,29 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
       speed = 3;
     else if (fm == climate::CLIMATE_FAN_HIGH)
       speed = 5;
-    EnqueueFrame(ACFramer::Key::FanSpeed, speed);
+    EnqueueFrame(ACFramer::Key::FanSpeed, speed, true /* query_after */);
   }
 }
 
-void OutEquipAC::WriteFrame(ACFramer &framer) {
+void OutEquipAC::WriteFrame(ACFramer &framer, bool is_query) {
   expecting_key = framer.GetKey();
+  in_flight_is_query_ = is_query;
+  awaiting_response_ = true;
   this->write_array(framer.buffer(), framer.buffer_pos());
   last_frame_sent = millis();
   num_frames_tx_++;
 }
 
 void OutEquipAC::MaybeSendCurFrame() {
+  if (awaiting_response_) {
+    return;
+  }
   if (!txQueue.empty()) {
-    WriteFrame(txQueue.front());
+    ACFramer next_frame = txQueue.front();
     txQueue.pop();
+    // A frame from txQueue with value == 0 is a priority re-query
+    bool is_query = (next_frame.GetValue() == ACFramer::kQueryVal);
+    WriteFrame(next_frame, is_query);
     return;
   }
   if (millis() - last_full_status < 1000) {
@@ -326,14 +369,26 @@ void OutEquipAC::MaybeSendCurFrame() {
   }
   ACFramer txFramer;
   txFramer.NewFrame(kQueryKeys[cur_query_key_idx], ACFramer::kQueryVal);
-  WriteFrame(txFramer);
+  WriteFrame(txFramer, true /* is_query */);
 }
 
-bool OutEquipAC::EnqueueFrame(ACFramer::Key key, uint16_t value) {
+bool OutEquipAC::EnqueueFrame(ACFramer::Key key, uint16_t value, bool query_after) {
   ACFramer txFramer;
   if (!txFramer.NewFrame(key, value))
     return false;
   txQueue.push(txFramer);
+
+  if (query_after) {
+    ACFramer queryFramer;
+    if (queryFramer.NewFrame(key, ACFramer::kQueryVal)) {
+      txQueue.push(queryFramer);
+    }
+  }
+
+  // If bus is currently idle, transmit immediately without waiting for loop interval
+  if (!awaiting_response_) {
+    MaybeSendCurFrame();
+  }
   return true;
 }
 
