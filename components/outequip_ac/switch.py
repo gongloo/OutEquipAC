@@ -17,14 +17,17 @@ CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(CONF_OUTEQUIP_AC_ID): cv.use_id(OutEquipAC),
     cv.Optional(CONF_LCD): switch.switch_schema(
         OutEquipACSwitch,
+        default_restore_mode="DISABLED",
         icon="mdi:clock-digital",
     ).extend(cv.COMPONENT_SCHEMA),
     cv.Optional(CONF_SWING): switch.switch_schema(
         OutEquipACSwitch,
+        default_restore_mode="DISABLED",
         icon="mdi:swap-horizontal",
     ).extend(cv.COMPONENT_SCHEMA),
     cv.Optional(CONF_LIGHT): switch.switch_schema(
         OutEquipACSwitch,
+        default_restore_mode="RESTORE_DEFAULT_OFF",
         icon="mdi:wall-sconce-flat",
     ).extend(cv.COMPONENT_SCHEMA),
 })
@@ -50,8 +53,6 @@ async def to_code(config):
 
     if CONF_LIGHT in config:
         conf = config[CONF_LIGHT]
-        if CONF_RESTORE_MODE not in conf:
-            conf[CONF_RESTORE_MODE] = "RESTORE_DEFAULT_OFF"
         var = await switch.new_switch(conf)
         await cg.register_component(var, conf)
         cg.add(var.set_parent(parent))

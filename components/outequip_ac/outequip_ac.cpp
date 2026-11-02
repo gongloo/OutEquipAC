@@ -231,31 +231,65 @@ void OutEquipAC::loop() {
       // Handle Power/Mode combination for Climate
       if (key == ACFramer::Key::Power || key == ACFramer::Key::Mode) {
         climate::ClimateMode new_mode = climate::CLIMATE_MODE_OFF;
+        climate::ClimatePreset new_preset = climate::CLIMATE_PRESET_NONE;
+
         if (cur_power_state_ == ACFramer::OnOffValue::On) {
+          // If Mode hasn't been polled yet on boot, don't publish/overwrite mode until Mode frame arrives
+          if (cur_mode_ == ACFramer::ModeValue::Query) {
+            // Keep existing mode / do not publish transient OFF
+            goto skip_mode_calc;
+          }
+
           switch (cur_mode_) {
           case ACFramer::ModeValue::Cool:
+            new_mode = climate::CLIMATE_MODE_COOL;
+            new_preset = climate::CLIMATE_PRESET_NONE;
+            break;
           case ACFramer::ModeValue::Eco:
+            new_mode = climate::CLIMATE_MODE_COOL;
+            new_preset = climate::CLIMATE_PRESET_ECO;
+            break;
           case ACFramer::ModeValue::Sleep:
+            new_mode = climate::CLIMATE_MODE_COOL;
+            new_preset = climate::CLIMATE_PRESET_SLEEP;
+            break;
           case ACFramer::ModeValue::Turbo:
             new_mode = climate::CLIMATE_MODE_COOL;
+            new_preset = climate::CLIMATE_PRESET_BOOST;
             break;
           case ACFramer::ModeValue::Heat:
             new_mode = climate::CLIMATE_MODE_HEAT;
+            new_preset = climate::CLIMATE_PRESET_NONE;
             break;
           case ACFramer::ModeValue::Fan:
             new_mode = climate::CLIMATE_MODE_FAN_ONLY;
+            new_preset = climate::CLIMATE_PRESET_NONE;
+            break;
+          case ACFramer::ModeValue::Wet:
+            new_mode = climate::CLIMATE_MODE_DRY;
+            new_preset = climate::CLIMATE_PRESET_NONE;
             break;
           default:
             break;
           }
         }
+
         if (this->mode != new_mode) {
           ESP_LOGD("outequip_ac", "Climate mode changed to %d",
                    static_cast<int>(new_mode));
           this->mode = new_mode;
           climate_changed = true;
         }
+
+        if (this->preset != new_preset) {
+          ESP_LOGD("outequip_ac", "Climate preset changed to %d",
+                   static_cast<int>(new_preset));
+          this->preset = new_preset;
+          climate_changed = true;
+        }
       }
+
+    skip_mode_calc:
 
       if (climate_changed) {
         this->publish_state();
@@ -288,7 +322,11 @@ climate::ClimateTraits OutEquipAC::traits() {
   traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
   traits.set_supported_modes(
       {climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_COOL,
-       climate::CLIMATE_MODE_HEAT, climate::CLIMATE_MODE_FAN_ONLY});
+       climate::CLIMATE_MODE_HEAT, climate::CLIMATE_MODE_FAN_ONLY,
+       climate::CLIMATE_MODE_DRY});
+  traits.set_supported_presets(
+      {climate::CLIMATE_PRESET_NONE, climate::CLIMATE_PRESET_ECO,
+       climate::CLIMATE_PRESET_SLEEP, climate::CLIMATE_PRESET_BOOST});
   traits.set_supported_fan_modes({climate::CLIMATE_FAN_LOW,
                                   climate::CLIMATE_FAN_MEDIUM,
                                   climate::CLIMATE_FAN_HIGH});
@@ -296,23 +334,62 @@ climate::ClimateTraits OutEquipAC::traits() {
 }
 
 void OutEquipAC::control(const climate::ClimateCall &call) {
+  // 1. Handle Climate Preset changes
+  if (call.get_preset().has_value()) {
+    auto preset = *call.get_preset();
+    if (preset == climate::CLIMATE_PRESET_ECO) {
+      EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Eco), true /* query_after */);
+      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+    } else if (preset == climate::CLIMATE_PRESET_SLEEP) {
+      EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Sleep), true /* query_after */);
+      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+    } else if (preset == climate::CLIMATE_PRESET_BOOST) {
+      EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Turbo), true /* query_after */);
+      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+    } else if (preset == climate::CLIMATE_PRESET_NONE) {
+      // If leaving a special preset while in cooling and no explicit mode is in this call, revert to standard Cool mode
+      if (!call.get_mode().has_value() &&
+          (cur_mode_ == ACFramer::ModeValue::Eco ||
+           cur_mode_ == ACFramer::ModeValue::Sleep ||
+           cur_mode_ == ACFramer::ModeValue::Turbo)) {
+        EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Cool), true /* query_after */);
+      }
+    }
+  }
+
+  // 2. Handle Climate Mode changes
   if (call.get_mode().has_value()) {
     auto m = *call.get_mode();
     if (m == climate::CLIMATE_MODE_OFF) {
-      EnqueueFrame(ACFramer::Key::Mode, 1);
-      EnqueueFrame(ACFramer::Key::Power, 1, true /* query_after */);
+      // Control board firmware quirk workaround (protocol.md):
+      // The Summit2 firmware has a bug where heating engages for several seconds
+      // every few minutes when Mode is set to Heat (2), even if Power is Off (1).
+      // To work around this, switch Mode to Cool (1) before setting Power to Off
+      // if currently in Heat mode (or if mode is unknown/querying).
+      if (cur_mode_ == ACFramer::ModeValue::Heat || cur_mode_ == ACFramer::ModeValue::Query) {
+        EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Cool), true /* query_after */);
+      }
+      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::Off), true /* query_after */);
     } else {
-      uint16_t ac_mode = 0;
-      if (m == climate::CLIMATE_MODE_COOL)
-        ac_mode = 1;
-      else if (m == climate::CLIMATE_MODE_HEAT)
-        ac_mode = 2;
-      else if (m == climate::CLIMATE_MODE_FAN_ONLY)
-        ac_mode = 3;
+      ACFramer::ModeValue ac_mode = ACFramer::ModeValue::Query;
+      if (m == climate::CLIMATE_MODE_COOL) {
+        // If a specific preset (e.g. ECO, SLEEP, BOOST) was also specified in this call,
+        // it was already enqueued above. Otherwise, default to standard Cool mode.
+        if (!call.get_preset().has_value() || *call.get_preset() == climate::CLIMATE_PRESET_NONE) {
+          ac_mode = ACFramer::ModeValue::Cool;
+        }
+      } else if (m == climate::CLIMATE_MODE_HEAT) {
+        ac_mode = ACFramer::ModeValue::Heat;
+      } else if (m == climate::CLIMATE_MODE_FAN_ONLY) {
+        ac_mode = ACFramer::ModeValue::Fan;
+      } else if (m == climate::CLIMATE_MODE_DRY) {
+        ac_mode = ACFramer::ModeValue::Wet;
+      }
 
-      if (ac_mode != 0)
-        EnqueueFrame(ACFramer::Key::Mode, ac_mode, true /* query_after */);
-      EnqueueFrame(ACFramer::Key::Power, 2, true /* query_after */);
+      if (ac_mode != ACFramer::ModeValue::Query) {
+        EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ac_mode), true /* query_after */);
+      }
+      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
     }
   }
 

@@ -32,7 +32,7 @@ CONFIG_SCHEMA = cv.All(
     climate.climate_schema(OutEquipAC).extend({
         cv.GenerateID(CONF_OUTEQUIP_AC_ID): cv.use_id(OutEquipAC),
         cv.Optional(CONF_ICON, default="mdi:air-conditioner"): cv.icon,
-    }).extend(cv.COMPONENT_SCHEMA),
+    }),
     default_visual_specs
 )
 
