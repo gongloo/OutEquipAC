@@ -24,10 +24,6 @@ esphome:
               static std::string s_ip = id(influxdb_host_text).state;
               static const char *addrs[] = {s_ip.c_str(), nullptr};
               id(influxdb_udp)->set_addresses(addrs);
-            } else {
-              // Ensure default broadcast 255.255.255.255 is disabled when host is unconfigured
-              static const char *const empty_addrs[] = {nullptr};
-              id(influxdb_udp)->set_addresses(empty_addrs);
             }
             if (id(influxdb_port_number).state > 0) {
               id(influxdb_udp)->set_broadcast_port(id(influxdb_port_number).state);
@@ -302,7 +298,6 @@ text:
     id: influxdb_host_text
     icon: "mdi:table-network"
     optimistic: true
-    min_length: 0
     max_length: 15
     restore_value: true
     entity_category: "config"
