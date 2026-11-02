@@ -4,18 +4,42 @@ on:
   pull_request:
     paths:
       - "*.yaml"
+      - "components/**"
+      - "test/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "*.yaml"
+      - "components/**"
+      - "test/**"
       - ".github/workflows/ci.yml"
   schedule:
     - cron: "0 0 * * *"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  native-tests:
+    name: Native C++ Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install GoogleTest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtest-dev libgmock-dev g++
+      - name: Run native tests
+        run: ./test/run_tests.sh
+
   ci:
     name: Building ${{ matrix.file }} / ${{ matrix.esphome-version }}
     runs-on: ubuntu-latest
+    needs: [native-tests]
     strategy:
       fail-fast: false
       max-parallel: 3
