@@ -32,16 +32,9 @@ jobs:
       - name: Install GoogleTest
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtest-dev libgmock-dev cmake g++
-      - name: Compile and run native tests
-        run: |
-          g++ -std=c++17 -pthread \
-            -Icomponents/outequip_ac \
-            test/test_native/ac_framer_test.cpp \
-            components/outequip_ac/ac_framer.cpp \
-            -lgtest -lgmock \
-            -o test_framer
-          ./test_framer
+          sudo apt-get install -y libgtest-dev libgmock-dev g++
+      - name: Run native tests
+        run: ./test/run_tests.sh
 
   ci:
     name: Building ${{ matrix.file }} / ${{ matrix.esphome-version }}
