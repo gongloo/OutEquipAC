@@ -75,6 +75,8 @@ public:
   uint32_t num_frames_failed() const { return num_frames_failed_; }
   uint32_t num_spurious_bytes_rx() const { return num_spurious_bytes_rx_; }
 
+  bool board_uses_fahrenheit() const { return board_uses_fahrenheit_; }
+
 protected:
   sensor::Sensor *intake_temp_sensor_{nullptr};
   sensor::Sensor *outlet_temp_sensor_{nullptr};
@@ -87,9 +89,9 @@ protected:
   switch_::Switch *light_switch_{nullptr};
 
 private:
-  void WriteFrame(ACFramer &framer);
+  void WriteFrame(ACFramer &framer, bool is_query);
   void MaybeSendCurFrame();
-  bool EnqueueFrame(ACFramer::Key key, uint16_t value);
+  bool EnqueueFrame(ACFramer::Key key, uint16_t value, bool query_after = false);
 
   constexpr static ACFramer::Key kQueryKeys[] = {
       ACFramer::Key::Power,
@@ -111,6 +113,10 @@ private:
   size_t cur_query_key_idx = 0;
   uint32_t last_frame_sent = 0;
   uint32_t last_full_status = 0;
+  bool awaiting_response_ = false;
+  bool in_flight_is_query_ = false;
+  bool board_uses_fahrenheit_ = true;
+
   std::queue<ACFramer> txQueue;
   std::optional<ACFramer::Key> expecting_key;
   ACFramer rxFramer;
