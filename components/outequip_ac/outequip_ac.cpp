@@ -88,7 +88,8 @@ void OutEquipAC::loop() {
       } else {
         num_spurious_bytes_rx_++;
       }
-      rxFramer.Reset();
+      // Do not call rxFramer.Reset() here: ACFramer::Resync() manages and preserves
+      // any valid preamble prefix across errors to avoid dropping subsequent frames.
     } else if (rxFramer.HasFullFrame()) {
       num_frames_rx_++;
       const auto key = rxFramer.GetKey();

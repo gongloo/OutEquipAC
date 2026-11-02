@@ -1,8 +1,6 @@
-#ifndef __AC_FRAMER_H__
-#define __AC_FRAMER_H__
+#pragma once
 
 #include <cstdint>
-#include <string>
 
 class ACFramer {
 public:
@@ -165,6 +163,7 @@ public:
   uint8_t buffer_pos() const { return buffer_pos_; }
 
 private:
+  void Resync();
   uint8_t GetLength() const;
   uint8_t GetValueLength() const;
   bool ValidateFrame() const;
@@ -173,7 +172,5 @@ private:
   uint8_t buffer_pos_;
 
   // Storage for string representation of value, as needed.
-  char val_str_[7];
+  char val_str_[16];
 };
-
-#endif // __AC_FRAMER_H__

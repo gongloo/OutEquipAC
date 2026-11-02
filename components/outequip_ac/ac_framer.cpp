@@ -1,6 +1,7 @@
 #include "ac_framer.h"
 
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <stdint.h>
 
@@ -10,24 +11,84 @@ enum FrameBytePos { Length = 2, DeviceType = 3, Key = 4, Value = 5 };
 
 constexpr uint8_t kPreamble[] = {0x5a, 0x5a};
 constexpr uint8_t kPostamble[] = {0x0d, 0x0a};
+constexpr uint8_t kDeviceTypeAc = 0x01;
 
 }  // namespace
 
+void ACFramer::Resync() {
+  // Look for any suffix starting at offset >= 1 that begins with preamble bytes.
+  // We want to preserve the longest matching preamble prefix [0x5a, 0x5a] or [0x5a].
+  for (size_t start = 1; start < buffer_pos_; ++start) {
+    size_t len = buffer_pos_ - start;
+    if (len >= 2 && buffer_[start] == kPreamble[0] && buffer_[start + 1] == kPreamble[1]) {
+      // Shift remaining bytes starting with the full 2-byte preamble to the front
+      memmove(buffer_, buffer_ + start, len);
+      buffer_pos_ = len;
+      return;
+    }
+    if (len == 1 && buffer_[start] == kPreamble[0]) {
+      // Shift single trailing 0x5a to front
+      buffer_[0] = kPreamble[0];
+      buffer_pos_ = 1;
+      return;
+    }
+  }
+  buffer_pos_ = 0;
+}
+
 // cppcheck-suppress unusedFunction
 bool ACFramer::FrameData(const uint8_t data) {
-  // Check if we have space in the buffer
-  if (buffer_pos_ >= sizeof(buffer_)) {
-    return false;  // Buffer overflow
+  // If we already have a completed full frame, reset before starting the next frame
+  if (HasFullFrame()) {
+    Reset();
   }
 
-  // Check if we have a full frame already
-  if (HasFullFrame()) {
-    return false;
+  // Check if we have space in the buffer
+  if (buffer_pos_ >= sizeof(buffer_)) {
+    Resync();
+    if (buffer_pos_ >= sizeof(buffer_)) {
+      Reset();
+      return false;
+    }
   }
 
   // Check for preamble
-  if (buffer_pos_ < sizeof(kPreamble) && data != kPreamble[buffer_pos_]) {
-    return false;  // Invalid start of frame
+  if (buffer_pos_ < sizeof(kPreamble)) {
+    if (data != kPreamble[buffer_pos_]) {
+      // If we received 0x5a when expecting the second 0x5a (i.e. buffer_pos_ == 1),
+      // we can stay at buffer_pos_ = 1 (treating this byte as the new first 0x5a).
+      if (data == kPreamble[0]) {
+        buffer_pos_ = 1;
+        buffer_[0] = data;
+      } else {
+        buffer_pos_ = 0;
+      }
+      return false;
+    }
+    buffer_[buffer_pos_++] = data;
+    return true;
+  }
+
+  // Early header validation for byte positions: Length (2), DeviceType (3), Key (4)
+  if (buffer_pos_ == FrameBytePos::Length) {
+    // Valid lengths in this protocol: 6 (1-byte value) or 7 (2-byte value)
+    if (data != 6 && data != 7) {
+      buffer_[buffer_pos_++] = data;
+      Resync();
+      return false;
+    }
+  } else if (buffer_pos_ == FrameBytePos::DeviceType) {
+    if (data != kDeviceTypeAc) {
+      buffer_[buffer_pos_++] = data;
+      Resync();
+      return false;
+    }
+  } else if (buffer_pos_ == FrameBytePos::Key) {
+    if (!ValidateKey(data)) {
+      buffer_[buffer_pos_++] = data;
+      Resync();
+      return false;
+    }
   }
 
   // Add the data to the buffer
@@ -35,7 +96,10 @@ bool ACFramer::FrameData(const uint8_t data) {
 
   // Validate the frame if we have enough data
   if (HasFullFrame()) {
-    return ValidateFrame();
+    if (!ValidateFrame()) {
+      Resync();
+      return false;
+    }
   }
 
   return true;
@@ -67,9 +131,16 @@ uint16_t ACFramer::GetValue() const {
 const char* ACFramer::GetValueAsString() {
   switch (GetKey()) {
     case Key::Power:
-    case Key::LCD:
     case Key::Swing:
       return OnOffValueToString(static_cast<OnOffValue>(GetValue()));
+    case Key::LCD:
+      // In the serial protocol for LCD, 0 is On and 1 is Off
+      if (GetValue() == 0 || GetValue() == 2) {
+        return "on";
+      } else if (GetValue() == 1) {
+        return "off";
+      }
+      return "query";
     case Key::Mode:
       return ModeValueToString(static_cast<ModeValue>(GetValue()));
     case Key::Light:
@@ -105,13 +176,13 @@ bool ACFramer::NewFrame(Key key, uint16_t value, bool allow_invalid) {
 
   // Length
   assert(buffer_pos_ == FrameBytePos::Length);
-  bool long_value = value > UINT8_MAX;
+  bool long_value = (key == Key::Voltage || key == Key::Amperage) && value > 0;
   buffer_[buffer_pos_++] = sizeof(kPostamble) +
                            3 /* device type, key, checksum */ +
                            (long_value ? 2 : 1);
 
   // Device Type
-  buffer_[buffer_pos_++] = 1;
+  buffer_[buffer_pos_++] = kDeviceTypeAc;
 
   // Key
   assert(buffer_pos_ == FrameBytePos::Key);
@@ -156,7 +227,8 @@ uint8_t ACFramer::GetValueLength() const {
 
 bool ACFramer::HasFullFrame() const {
   static_assert(FrameBytePos::Length < sizeof(kPreamble) + 1);
-  return (buffer_pos_ == GetLength() + sizeof(kPreamble) + 1);
+  const uint8_t len = GetLength();
+  return (len >= 6 && buffer_pos_ == len + sizeof(kPreamble) + 1);
 }
 
 bool ACFramer::ValidateFrame() const {
@@ -170,21 +242,62 @@ bool ACFramer::ValidateFrame() const {
     return false;  // Invalid preamble
   }
 
+  // Validate length byte: must be 6 or 7.
+  const uint8_t len = GetLength();
+  if (len != 6 && len != 7) {
+    return false;
+  }
+
+  // Validate device type.
+  if (buffer_[FrameBytePos::DeviceType] != kDeviceTypeAc) {
+    return false;
+  }
+
   // Validate key.
   if (!ValidateKey(buffer_[FrameBytePos::Key])) {
     return false;  // Invalid key
   }
 
+  // Validate value length matches key expectations.
+  const uint8_t val_len = GetValueLength();
+  switch (GetKey()) {
+    case Key::Voltage:
+    case Key::Amperage:
+      // Voltage and Amperage state responses are 16-bit (2 bytes), but query packets can be 1 byte.
+      if (val_len != 1 && val_len != 2) {
+        return false;
+      }
+      break;
+    default:
+      if (val_len != 1) {
+        return false;
+      }
+      break;
+  }
+
   // Validate value.
   switch (GetKey()) {
     case Key::Power:
-    case Key::LCD:
     case Key::Swing:
-    case Key::Light:
       switch (static_cast<OnOffValue>(GetValue())) {
         case OnOffValue::Query:
         case OnOffValue::Off:
         case OnOffValue::On:
+          break;
+        default:
+          return false;
+      }
+      break;
+    case Key::LCD:
+      if (GetValue() > 2) {
+        return false;
+      }
+      break;
+    case Key::Light:
+      switch (static_cast<LightValue>(GetValue())) {
+        case LightValue::Query:
+        case LightValue::On:
+        case LightValue::Off:
           break;
         default:
           return false;
@@ -210,11 +323,15 @@ bool ACFramer::ValidateFrame() const {
         return false;
       }
       break;
-    case Key::SetTemperature:
-      if (GetValue() < 16 || GetValue() > 30) {
-        return GetValue() != kQueryVal;
+    case Key::SetTemperature: {
+      const uint16_t v = GetValue();
+      const bool valid_c = (v >= 16 && v <= 30);
+      const bool valid_f = (v >= 60 && v <= 86);
+      if (v != kQueryVal && !valid_c && !valid_f) {
+        return false;
       }
       break;
+    }
     case Key::UndervoltProtect:
     case Key::OvervoltProtect:
     case Key::IntakeAirTemp:
