@@ -6,13 +6,12 @@ CDPATH="" cd -- "$(dirname -- "$0")/.."
 
 echo "Checking dependencies..."
 
-CXXFLAGS="-std=c++17 -pthread -Icomponents/outequip_ac"
-LDFLAGS="-lgtest -lgmock"
+CXXFLAGS=(-std=c++17 -pthread -Icomponents/outequip_ac)
+LDFLAGS=(-lgtest -lgmock)
 
 # Check if g++ can locate <gtest/gtest.h> with given flags
 check_gtest_include() {
-  # shellcheck disable=SC2086
-  echo '#include <gtest/gtest.h>' | g++ ${CXXFLAGS} -E -x c++ - >/dev/null 2>&1
+  echo '#include <gtest/gtest.h>' | g++ "${CXXFLAGS[@]}" -E -x c++ - >/dev/null 2>&1
 }
 
 # 1. First, check if default include paths resolve <gtest/gtest.h> (standard on Linux / custom toolchains)
@@ -20,8 +19,8 @@ if ! check_gtest_include; then
   # 2. If default include paths do not find gtest, check if Homebrew can provide it (macOS or Linux with Homebrew)
   if command -v brew &>/dev/null; then
     BREW_PREFIX=$(brew --prefix)
-    CXXFLAGS="${CXXFLAGS} -I${BREW_PREFIX}/include"
-    LDFLAGS="-L${BREW_PREFIX}/lib ${LDFLAGS}"
+    CXXFLAGS+=(-I"${BREW_PREFIX}/include")
+    LDFLAGS=(-L"${BREW_PREFIX}/lib" "${LDFLAGS[@]}")
 
     if ! check_gtest_include; then
       if [ "$(uname -s)" = "Darwin" ]; then
@@ -47,11 +46,10 @@ fi
 trap 'rm -f test_framer' EXIT
 
 echo "Compiling tests..."
-# shellcheck disable=SC2086
-g++ ${CXXFLAGS} \
+g++ "${CXXFLAGS[@]}" \
   test/test_native/ac_framer_test.cpp \
   components/outequip_ac/ac_framer.cpp \
-  ${LDFLAGS} \
+  "${LDFLAGS[@]}" \
   -o test_framer
 
 echo -e "\nRunning tests..."
