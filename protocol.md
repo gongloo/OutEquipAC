@@ -41,12 +41,12 @@ Other device types appear to be supported, but they lie outside the scope of thi
 | --- | -------------------- | --- | -------- | ------------------------------------------------- |
 | 1   | Power                | R/W | `uint8`  | [On/Off Values](#onoff-values)                    |
 | 2   | Mode                 | R/W | `uint8`  | [Mode Values](#mode-values)                       |
-| 3   | Set Temperature      | R   | `uint8`  | [Set Temperature Values](#set-temperature-values) |
+| 3   | Set Temperature      | R/W | `uint8`  | [Set Temperature Values](#set-temperature-values) |
 | 4   | Fan Speed            | R/W | `uint8`  | 1-5                                               |
 | 5   | Undervolt Protection | R/W | `uint8`  | decivolts                                         |
 | 6   | Overvolt Protection  | R   | `uint8`  | Volts                                             |
-| 7   | Intake Air Temp      | R   | `int8`   | °C                                                |
-| 8   | Air Outlet Temp      | R   | `int8`   | °C                                                |
+| 7   | Intake Air Temp      | R   | `int8`   | [Air Temperature Values](#air-temperature-values) |
+| 8   | Air Outlet Temp      | R   | `int8`   | [Air Temperature Values](#air-temperature-values) |
 | 10  | LCD                  | R/W | `uint8`  | [LCD Values](#lcd-values)                         |
 | 16  | Swing                | R/W | `uint8`  | [On/Off Values](#onoff-values)                    |
 | 18  | Voltage              | R   | `uint16` | decivolts                                         |
@@ -88,14 +88,19 @@ LCD handling in the Summit2 firmware has the following unique behavior:
 
 ## Set Temperature Values
 
-The board can be set in Fahrenheit or in Celcius (using the IR remote).
+The board can be set in Fahrenheit or in Celsius (using the IR remote).
 
-When set to Celcius, values are related in whole degrees Celsius, within the range 17-30 inclusive.
+When set to Celsius, values are related in whole degrees Celsius, within the range 16-30 inclusive.
 
-When set to Fahrenheit, values are related in whole degrees Fahrenheit, within the range 61-86 inclusive.
+When set to Fahrenheit, values are related in whole degrees Fahrenheit, within the range 60-86 inclusive.
 
 > [!IMPORTANT]
 > In older versions of board firmware, setting temperature does not work due to a firmware bug. This bug is fixed as of 2025-08.
+
+## Air Temperature Values
+
+- **Key 7 (Intake Air Temp)** and **Key 8 (Air Outlet Temp)** report internal thermistor readings in whole degrees Celsius (`int8`).
+- Unlike **Set Temperature** (which adapts its units based on whether the unit is configured for Celsius or Fahrenheit), these sensor temperatures are **always reported in °C**, regardless of whether the control board is operating in Fahrenheit or Celsius mode.
 
 ## Light Values
 
