@@ -68,6 +68,8 @@ Other device types appear to be supported, but they lie outside the scope of thi
 
 > [!NOTE]
 > There appears to be a bug in the control board firmware causing heating to engage for a few seconds every several minutes when mode is set to `2` (Heating), even if the power is set to `1` (Off). To work around this, always set mode to `1` (Cooling) before setting power to `1` (Off).
+>
+> Additionally, whenever power transitions from `1` (Off) to `2` (On), the control board automatically resets the active mode to `1` (Cooling). When turning the unit on with a non-cooling mode (or preset), send `Power = 2` before `Mode` so the desired mode is not overwritten by the power-on reset.
 
 ## On/Off Values
 

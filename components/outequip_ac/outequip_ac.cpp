@@ -338,14 +338,23 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
   if (call.get_preset().has_value()) {
     auto preset = *call.get_preset();
     if (preset == climate::CLIMATE_PRESET_ECO) {
+      if (cur_power_state_ != ACFramer::OnOffValue::On) {
+        cur_mode_ = ACFramer::ModeValue::Query;
+        EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+      }
       EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Eco), true /* query_after */);
-      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
     } else if (preset == climate::CLIMATE_PRESET_SLEEP) {
+      if (cur_power_state_ != ACFramer::OnOffValue::On) {
+        cur_mode_ = ACFramer::ModeValue::Query;
+        EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+      }
       EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Sleep), true /* query_after */);
-      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
     } else if (preset == climate::CLIMATE_PRESET_BOOST) {
+      if (cur_power_state_ != ACFramer::OnOffValue::On) {
+        cur_mode_ = ACFramer::ModeValue::Query;
+        EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+      }
       EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ACFramer::ModeValue::Turbo), true /* query_after */);
-      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
     } else if (preset == climate::CLIMATE_PRESET_NONE) {
       // If leaving a special preset while in cooling and no explicit mode is in this call, revert to standard Cool mode
       if (!call.get_mode().has_value() &&
@@ -371,6 +380,17 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
       }
       EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::Off), true /* query_after */);
     } else {
+      // Control board firmware quirk workaround (protocol.md):
+      // The Summit2 firmware automatically resets Mode to Cool (1) when Power
+      // transitions from Off to On. When powering on, Power must be sent before
+      // Mode so the requested mode isn't immediately overwritten by the board.
+      // Additionally, invalidate cur_mode_ so the climate entity waits for the
+      // Mode confirmation frame before publishing its state.
+      if (cur_power_state_ != ACFramer::OnOffValue::On) {
+        cur_mode_ = ACFramer::ModeValue::Query;
+        EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
+      }
+
       ACFramer::ModeValue ac_mode = ACFramer::ModeValue::Query;
       if (m == climate::CLIMATE_MODE_COOL) {
         // If a specific preset (e.g. ECO, SLEEP, BOOST) was also specified in this call,
@@ -389,7 +409,6 @@ void OutEquipAC::control(const climate::ClimateCall &call) {
       if (ac_mode != ACFramer::ModeValue::Query) {
         EnqueueFrame(ACFramer::Key::Mode, static_cast<uint16_t>(ac_mode), true /* query_after */);
       }
-      EnqueueFrame(ACFramer::Key::Power, static_cast<uint16_t>(ACFramer::OnOffValue::On), true /* query_after */);
     }
   }
 
