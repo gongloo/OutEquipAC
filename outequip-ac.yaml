@@ -14,7 +14,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.1.9"
+    version: "2.2.0"
   min_version: 2026.10.0
   on_boot:
     - priority: 600.0
@@ -287,7 +287,7 @@ interval:
     then:
       - if:
           condition:
-            lambda: 'return !id(influxdb_host_text).state.empty();'
+            lambda: "return !id(influxdb_host_text).state.empty();"
           then:
             - script.execute: report_stats
 
