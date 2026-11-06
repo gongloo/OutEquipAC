@@ -174,7 +174,6 @@ influxdb_udp:
       update_interval: ${stats_update_interval_s}s
       fields:
         power:
-          type: string
           lambda: |-
             switch (id(ac_device)->power_state()) {
               case ACFramer::OnOffValue::On: return "on";
@@ -182,7 +181,6 @@ influxdb_udp:
               default: return "query";
             }
         mode:
-          type: string
           lambda: |-
             switch (id(ac_device)->cur_mode()) {
               case ACFramer::ModeValue::Cool: return "cool";
@@ -199,7 +197,6 @@ influxdb_udp:
             if (std::isnan(id(ac_climate).target_temperature)) return std::optional<int32_t>{};
             return std::optional<int32_t>{static_cast<int32_t>(std::lround((id(ac_climate).target_temperature * 9.0f / 5.0f) + 32.0f))};
         fan_speed:
-          type: uint
           lambda: "return static_cast<uint32_t>(id(ac_device)->fan_speed());"
         undervolt: ac_undervolt
         overvolt:
@@ -212,30 +209,23 @@ influxdb_udp:
           sensor: ac_outlet_temp
           type: int
         lcd:
-          type: string
           lambda: |-
             if (!id(ac_lcd).has_state()) return "query";
             return id(ac_lcd).state ? "on" : "off";
         light:
-          type: string
           lambda: |-
             if (!id(ac_light).has_state()) return "query";
             return id(ac_light).state ? "on" : "off";
         voltage: ac_voltage
         uptime_ms:
-          type: uint
           lambda: "return millis();"
         frames_tx:
-          type: uint
           lambda: "return id(ac_device)->num_frames_tx();"
         frames_rx:
-          type: uint
           lambda: "return id(ac_device)->num_frames_rx();"
         frames_failed:
-          type: uint
           lambda: "return id(ac_device)->num_frames_failed();"
         spurious_bytes_rx:
-          type: uint
           lambda: "return id(ac_device)->num_spurious_bytes_rx();"
 
 script:
