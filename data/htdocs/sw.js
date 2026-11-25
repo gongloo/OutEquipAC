@@ -6,12 +6,31 @@ const PRECACHE_URLS = [
   'icon-96.png',
   'favicon.ico'
 ];
-const OWNED_PATHS = [...PRECACHE_URLS, 'thermostat.html'];
+const resolvePath = (asset) => new URL(asset, self.location.href).pathname;
+const THERMOSTAT_PATH = resolvePath('thermostat');
+const THERMOSTAT_HTML_PATH = resolvePath('thermostat.html');
+const OWNED_PATHS = new Set([
+  ...PRECACHE_URLS.map(resolvePath),
+  THERMOSTAT_HTML_PATH
+]);
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        for (const url of PRECACHE_URLS) {
+          try {
+            await cache.add(url);
+          } catch (err) {
+            // Ignore individual asset failures (e.g. local static dev or socket limits)
+          }
+        }
+      } catch (err) {
+        // Ignore cache storage errors
+      }
+    })()
   );
 });
 
@@ -37,26 +56,26 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Only intercept assets owned by OutEquipAC (supports reverse-proxy subpaths)
-  const isOwnedAsset = OWNED_PATHS.some((asset) => pathname.endsWith(`/${asset}`));
-  if (!isOwnedAsset) return;
+  if (!OWNED_PATHS.has(pathname)) return;
 
   event.respondWith(
     fetch(req)
       .then((res) => {
         if (res && res.status === 200) {
           const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {})
+          );
         }
         return res;
       })
-      .catch(() =>
-        caches.match(req).then((cached) => {
-          if (cached) return cached;
-          if (pathname.endsWith('/thermostat') || pathname.endsWith('/thermostat.html')) {
-            return caches.match('thermostat');
-          }
-          return Response.error();
-        })
-      )
+      .catch(async () => {
+        const cached = (await caches.match(req)) || (await caches.match(req, { ignoreSearch: true }));
+        if (cached) return cached;
+        if (pathname === THERMOSTAT_PATH || pathname === THERMOSTAT_HTML_PATH) {
+          return (await caches.match('thermostat')) || (await caches.match('thermostat.html')) || Response.error();
+        }
+        return Response.error();
+      })
   );
 });
