@@ -1,69 +1,81 @@
-self.addEventListener('install', function(event) {
-  self.skipWaiting(); // Force the updated service worker to activate immediately
+const CACHE_NAME = 'outequipac-v1';
+const PRECACHE_URLS = [
+  'thermostat',
+  'manifest.webmanifest',
+  'apple-touch-icon.png',
+  'icon-96.png',
+  'favicon.ico'
+];
+const resolvePath = (asset) => new URL(asset, self.location.href).pathname;
+const THERMOSTAT_PATH = resolvePath('thermostat');
+const THERMOSTAT_HTML_PATH = resolvePath('thermostat.html');
+const OWNED_PATHS = new Set([
+  ...PRECACHE_URLS.map(resolvePath),
+  THERMOSTAT_HTML_PATH
+]);
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open('sw-cache').then(function(cache) {
-      return cache.addAll([
-        'thermostat',
-        'manifest.webmanifest',
-        'apple-touch-icon.png',
-        'favicon.ico'
-      ]);
-    })
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        for (const url of PRECACHE_URLS) {
+          try {
+            await cache.add(url);
+          } catch (err) {
+            // Ignore individual asset failures (e.g. local static dev or socket limits)
+          }
+        }
+      } catch (err) {
+        // Ignore cache storage errors
+      }
+    })()
   );
 });
 
-self.addEventListener('activate', function(event) {
-  event.waitUntil(self.clients.claim()); // Force immediate page takeover
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
- 
-self.addEventListener("fetch", event => {
-  const url = event.request.url;
-  
-  // Completely bypass service worker for SSE stream, control commands, and dynamic APIs
-  if (
-    event.request.method !== 'GET' ||
-    url.includes('/events') ||
-    url.includes('/climate/') ||
-    url.includes('/number/') ||
-    url.includes('/select/') ||
-    url.includes('/sensor/') ||
-    url.includes('/switch/')
-  ) {
-    return; // Direct browser network pass-through
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  let pathname = '';
+  try {
+    const url = new URL(req.url);
+    if (url.origin !== self.location.origin) return;
+    pathname = url.pathname;
+  } catch (err) {
+    return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open("sw-cache").then(cache => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then(response => {
-          if (response) return response;
-          
-          // Map offline root fetches to the cached thermostat page
-          try {
-            const urlObj = new URL(event.request.url);
-            if (urlObj.pathname === '/' || urlObj.pathname === '' || urlObj.pathname.endsWith('/')) {
-              return caches.match('thermostat').then(fallbackRes => {
-                if (fallbackRes) return fallbackRes;
-                return caches.match(event.request);
-              });
-            }
-          } catch (e) {
-            console.error("Error matching offline root fallback:", e);
-          }
+  // Only intercept assets owned by OutEquipAC (supports reverse-proxy subpaths)
+  if (!OWNED_PATHS.has(pathname)) return;
 
-          const urlStr = event.request.url;
-          const alternativeUrl = urlStr.endsWith('/') ? urlStr.slice(0, -1) : urlStr + '/';
-          return caches.match(alternativeUrl);
-        });
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {})
+          );
+        }
+        return res;
+      })
+      .catch(async () => {
+        const cached = (await caches.match(req)) || (await caches.match(req, { ignoreSearch: true }));
+        if (cached) return cached;
+        if (pathname === THERMOSTAT_PATH || pathname === THERMOSTAT_HTML_PATH) {
+          return (await caches.match('thermostat')) || (await caches.match('thermostat.html')) || Response.error();
+        }
+        return Response.error();
       })
   );
 });
