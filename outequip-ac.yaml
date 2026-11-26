@@ -6,7 +6,7 @@ substitutions:
   # Source location of the custom external components.
   # Can be a local path string or a git repository source block.
   outequip_ac_component_source: "components"
-  web_host_component_source: "github://gongloo/esphome-web-host@v2.1.1"
+  web_host_component_source: "github://gongloo/esphome-web-host@v3.0.1"
   influxdb_udp_component_source: "github://gongloo/esphome-influxdb-udp@v1.0.0"
 
 esphome:
@@ -15,7 +15,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: "gongloo.${name}"
-    version: "2.3.0"
+    version: "2.4.0"
   min_version: 2026.10.0
 
 external_components:
@@ -24,7 +24,7 @@ external_components:
     components: [outequip_ac]
   - source: ${web_host_component_source}
     id: "web_host_component"
-    components: [web_host]
+    components: [web_host, pwa_host]
   - source: ${influxdb_udp_component_source}
     id: "influxdb_udp_component"
     components: [influxdb_udp]
@@ -142,23 +142,26 @@ sensor:
       web_server:
         sorting_group_id: electrical_section
 
-web_host:
+pwa_host:
+  name: "${friendly_name}"
+  short_name: "OutEquipAC"
+  start_url: "thermostat"
+  theme_color: "#0b0f19"
+  background_color: "#0b0f19"
+  icons:
+    - id: ui_apple_touch_icon
+      file: "data/htdocs/apple-touch-icon.png"
+      url: "/apple-touch-icon.png"
+      sizes: "160x160 192x192"
+      purpose: "any maskable"
   files:
     - id: ui_page
       file: "data/htdocs/thermostat.html"
       url: "/thermostat"
-    - id: ui_manifest
-      file: "data/htdocs/manifest.webmanifest"
-      url: "/manifest.webmanifest"
-    - id: ui_sw
-      file: "data/htdocs/sw.js"
-      url: "/sw.js"
+      aliases: ["thermostat.html"]
     - id: ui_favicon
       file: "data/htdocs/favicon.ico"
       url: "/favicon.ico"
-    - id: ui_apple_touch_icon
-      file: "data/htdocs/apple-touch-icon.png"
-      url: "/apple-touch-icon.png"
     - id: ui_icon_96
       file: "data/htdocs/icon-96.png"
       url: "/icon-96.png"
